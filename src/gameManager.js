@@ -242,7 +242,7 @@ function getSession(channelId) {
  * Sets the end timer for a session (called after sending the start message).
  * Returns the session.
  */
-setEndTimer(channelId, async (cid) => {
+function setEndTimer(channelId, async (cid) => {
   const session = getSession(cid);
   const result = endGame(cid, false);
   if (!result || !session) return;
