@@ -162,7 +162,6 @@ client.on(Events.MessageCreate, async (message) => {
   if (message.author.bot) return;
 
   const { channelId, author, content } = message;
-
   if (!hasActiveGame(channelId)) return;
 
   const word = content.trim();
@@ -178,37 +177,75 @@ client.on(Events.MessageCreate, async (message) => {
   }
 
   if (result.correct) {
-  await message.react('✅');
+    await message.react('✅');
 
-  const session = getSession(channelId);
+    const session = getSession(channelId);
 
-  // 🎉 ALL FOUND
-  if (result.allFound) {
-    const embed = new EmbedBuilder()
-      .setColor(0xFFD700)
-      .setTitle('🎉 All words found! Puzzle Complete!')
-      .setDescription(`**${author.username}** found the last word!\n\n${result.scoreboard}`)
-      .setFooter({ text: 'Amazing teamwork! Start a new game with /new' })
-      .setImage('attachment://grid.png');
+    // 🎉 ALL FOUND
+    if (result.allFound) {
+      const embed = new EmbedBuilder()
+        .setColor(0xFFD700)
+        .setTitle('🎉 All words found! Puzzle Complete!')
+        .setDescription(`**${author.username}** found the last word!\n\n${result.scoreboard}`)
+        .setFooter({ text: 'Amazing teamwork! Start a new game with /new' })
+        .setImage('attachment://grid.png');
 
+      const attachment = buildGridAttachment(
+        result.grid,
+        result.words,
+        result.placements,
+        result.foundWords,
+        false
+      );
+
+      const gameMessage = await message.channel.messages.fetch(session.messageId);
+
+      await gameMessage.edit({
+        embeds: [embed],
+        files: [attachment],
+      });
+
+      return;
+    }
+
+    // ✅ NORMAL UPDATE (update ONLY image in main game message)
     const attachment = buildGridAttachment(
-      result.grid,
-      result.words,
-      result.placements,
-      result.foundWords,
-      false
+      session.grid,
+      session.words,
+      session.placements,
+      session.foundWords,
+      session.hardMode
     );
 
     const gameMessage = await message.channel.messages.fetch(session.messageId);
 
+    const oldEmbed = gameMessage.embeds[0];
+    const updatedEmbed = EmbedBuilder.from(oldEmbed)
+      .setImage('attachment://grid.png');
+
     await gameMessage.edit({
-      embeds: [embed],
+      embeds: [updatedEmbed],
       files: [attachment],
     });
 
-    return;
+    // ✅ SEND SCORE AS NEW MESSAGE
+    await message.channel.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0x57F287)
+          .setTitle(`✅ ${result.word} found by ${author.username}`)
+          .setDescription(`+${result.points} pts • ${result.remaining} left`)
+          .addFields({
+            name: '🏆 Scoreboard',
+            value: result.scoreboard,
+          }),
+      ],
+    });
   }
-}); // ✅ CLOSE MessageCreate EVENT
+}); // ✅ IMPORTANT: CLOSE EVENT
+
+
+
   // ✅ NORMAL UPDATE (THIS IS THE IMPORTANT PART)
   // 🔥 EDIT ONLY IMAGE (keep original embed)
 const gameMessage = await message.channel.messages.fetch(session.messageId);
