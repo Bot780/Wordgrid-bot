@@ -101,17 +101,19 @@ function doPlace(grid, word, r, c, dr, dc) {
 }
 
 /**
- * Fill remaining null cells with random uppercase letters.
- */
+ * Fill remaining null cells with random uppercase letters. **/
 function fillGrid(grid) {
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
   for (let r = 0; r < GRID_SIZE; r++) {
     for (let c = 0; c < GRID_SIZE; c++) {
-      if (grid[r][c] === null) {
+      if (!grid[r][c] || grid[r][c] === null) {
         grid[r][c] = letters[Math.floor(Math.random() * letters.length)];
       }
     }
   }
+
+  return grid;
 }
 
 /**

@@ -310,7 +310,15 @@ function drawWordList(ctx, words, foundWords, ox, startY, gridW) {
   ctx.font         = 'bold 11px Arial, sans-serif';
   ctx.textAlign    = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText('WORDS TO FIND', ox, startY + 9);
+  const isFound = foundWords.includes(word);
+
+// Create hint: E_____ (6)
+const hint = word[0] + '_'.repeat(word.length - 1);
+
+// Show full word only if found
+const displayText = isFound ? word : hint;
+
+ctx.fillText(displayText, textX, textY);
 
   const chipW   = Math.floor((gridW - (WORDS_COLS - 1) * 8) / WORDS_COLS);
   const chipH   = WORD_ROW_H - 8;
