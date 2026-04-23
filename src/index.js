@@ -208,7 +208,7 @@ client.on(Events.MessageCreate, async (message) => {
 
     return;
   }
-
+}); // ✅ CLOSE MessageCreate EVENT
   // ✅ NORMAL UPDATE (THIS IS THE IMPORTANT PART)
   // 🔥 EDIT ONLY IMAGE (keep original embed)
 const gameMessage = await message.channel.messages.fetch(session.messageId);
@@ -237,7 +237,6 @@ await message.channel.send({
       })
   ]
 });
-}); // ✅ CLOSE MessageCreate EVENT
 // ─── Helper: Handle /new and /newhard ────────────────────────────────────────
 
 async function handleStartGame(interaction, hardMode) {
