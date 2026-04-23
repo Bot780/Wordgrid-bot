@@ -178,69 +178,60 @@ client.on(Events.MessageCreate, async (message) => {
   }
 
   if (result.correct) {
-    await message.react('✅');
+  await message.react('✅');
 
-    // Re-fetch session (may be null if allFound just ended it)
-    const session = getSession(channelId);
+  const session = getSession(channelId);
 
-    if (result.allFound) {
-      // Session is already removed by endGame — build final image from result data
-      const embed = new EmbedBuilder()
-        .setColor(0xFFD700)
-        .setTitle('🎉 All words found! Puzzle Complete!')
-        .setDescription(`**${author.username}** found the last word!\n\n${result.scoreboard}`)
-        .setFooter({ text: 'Amazing teamwork! Start a new game with /new' })
-        .setImage('attachment://grid.png');
+  // 🎉 All words found
+  if (result.allFound) {
+    const embed = new EmbedBuilder()
+      .setColor(0xFFD700)
+      .setTitle('🎉 All words found! Puzzle Complete!')
+      .setDescription(`**${author.username}** found the last word!\n\n${result.scoreboard}`)
+      .setFooter({ text: 'Amazing teamwork! Start a new game with /new' })
+      .setImage('attachment://grid.png');
 
-      // We need grid data from result since session is gone — attach plain message fallback
-      await message.channel.send({ embeds: [embed] });
+    const attachment = buildGridAttachment(
+      result.grid,
+      result.words,
+      result.placements,
+      result.foundWords,
+      false
+    );
 
-    } else {
-      const embed = new EmbedBuilder()
-        .setColor(0x57F287)
-        .setTitle(`✅ **${result.word}** found by ${author.username}!`)
-        .setDescription(`+**${result.points} points** • ${result.remaining} word(s) remaining`)
-        .addFields({ name: '🏆 Scoreboard', value: result.scoreboard, inline: false });
+    await message.channel.send({
+      embeds: [embed],
+      files: [attachment]
+    });
 
-      // Refresh grid image every 3 finds or when ≤ 2 remain
-      if (session) {
-  embed.setImage('attachment://grid.png');
-
-  const attachment = buildGridAttachment(
-    session.grid,
-    session.words,
-    session.placements,
-    session.foundWords,
-    session.hardMode
-  );
-
-  await message.channel.send({ embeds: [embed], files: [attachment] });
-} else {
-  await message.channel.send({ embeds: [embed] });
-} {
-        embed.setImage('attachment://grid.png');
-        const attachment = buildGridAttachment(
-          session.grid, session.words, session.placements, session.foundWords, session.hardMode
-        );
-        await message.channel.send({ embeds: [embed], files: [attachment] });
-      } else {
-        const attachment = buildGridAttachment(
-  result.grid,
-  result.words,
-  result.placements,
-  result.foundWords,
-  false
-);
-
-await message.channel.send({
-  embeds: [embed.setImage('attachment://grid.png')],
-  files: [attachment]
-});
-      }
-    }
+    return; // 🔥 IMPORTANT
   }
-});
 
+  // ✅ Normal correct answer
+  const embed = new EmbedBuilder()
+    .setColor(0x57F287)
+    .setTitle(`✅ **${result.word}** found by ${author.username}!`)
+    .setDescription(`+**${result.points} points** • ${result.remaining} word(s) remaining`)
+    .addFields({ name: '🏆 Scoreboard', value: result.scoreboard, inline: false })
+    .setImage('attachment://grid.png');
+
+  if (session) {
+    const attachment = buildGridAttachment(
+      session.grid,
+      session.words,
+      session.placements,
+      session.foundWords,
+      session.hardMode
+    );
+
+    await message.channel.send({
+      embeds: [embed],
+      files: [attachment]
+    });
+  } else {
+    await message.channel.send({ embeds: [embed] });
+  }
+}
 // ─── Helper: Handle /new and /newhard ────────────────────────────────────────
 
 async function handleStartGame(interaction, hardMode) {
