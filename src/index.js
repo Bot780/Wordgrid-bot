@@ -275,7 +275,13 @@ async function handleStartGame(interaction, hardMode) {
     session.grid, session.words, session.placements, [], hardMode
   );
 
-  await interaction.editReply({ embeds: [embed], files: [attachment] });
+  const reply = await interaction.editReply({
+  embeds: [embed],
+  files: [attachment]
+});
+
+// ✅ Save message ID so we can update it later
+session.messageId = reply.id;
 
   // 30-minute end timer
   setEndTimer(channelId, async (cid) => {

@@ -324,14 +324,36 @@ function drawWordList(ctx, words, foundWords, ox, startY, gridW) {
     const found = foundWords.includes(word);
 
     const highlightIdx = foundWords.indexOf(word);
-    const chipColor    = found
-      ? PILL_PALETTE[highlightIdx % PILL_PALETTE.length].replace('cc', 'ff')
-      : null;
+const chipColor = found
+  ? PILL_PALETTE[highlightIdx % PILL_PALETTE.length].replace('cc', '88')
+  : null;
 
     // Chip background
-    ctx.fillStyle = found ? (chipColor + '22') : '#ffffff08';
-    roundRect(ctx, chipX, chipY, chipW, chipH, 8);
-    ctx.fill();
+    if (found) {
+  const gradient = ctx.createLinearGradient(
+    chipX,
+    chipY,
+    chipX + chipW,
+    chipY
+  );
+
+  gradient.addColorStop(0, chipColor);
+  gradient.addColorStop(1, chipColor);
+
+  ctx.fillStyle = gradient;
+
+  ctx.shadowColor = chipColor;
+  ctx.shadowBlur = 14;
+
+  roundRect(ctx, chipX, chipY, chipW, chipH, chipH / 2); // full pill
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+} else {
+  ctx.fillStyle = '#ffffff08';
+  roundRect(ctx, chipX, chipY, chipW, chipH, 8);
+  ctx.fill();
+}
 
     // Chip border
     ctx.strokeStyle = found ? chipColor : THEME.cellBorder;
@@ -346,7 +368,7 @@ function drawWordList(ctx, words, foundWords, ox, startY, gridW) {
     const hint = word[0] + '_'.repeat(word.length - 1);
     const displayText = found ? word : hint;
 
-    ctx.fillStyle = found ? chipColor : THEME.wordPending;
+    ctx.fillStyle = found ? '#ffffff' : THEME.wordPending;
     ctx.font = found ? 'bold 13px Arial, sans-serif' : '13px Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
