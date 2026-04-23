@@ -237,6 +237,7 @@ client.on(Events.MessageCreate, async (message) => {
     files: [attachment],
   });
 }
+});
 // ─── Helper: Handle /new and /newhard ────────────────────────────────────────
 
 async function handleStartGame(interaction, hardMode) {
