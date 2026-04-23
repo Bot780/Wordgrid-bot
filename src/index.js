@@ -296,17 +296,32 @@ session.messageId = reply.id;
 
   // 30-minute end timer
   setEndTimer(channelId, async (cid) => {
-    // Session already ended by timer — result contains final state
-    const endResult = endGame(cid, false);
-    if (!endResult) return;
+  const endResult = endGame(cid, false);
+  if (!endResult) return;
 
-    const endEmbed = buildGameEndEmbed(endResult, '⏰ Time\'s Up!');
-    try {
-      await interaction.channel.send({ embeds: [endEmbed] });
-    } catch (err) {
-      console.error('Could not send game end message:', err);
-    }
+  const session = getSession(cid); // might be null after delete
+
+  const embed = buildGameEndEmbed(endResult, "⏰ Time's Up!");
+
+  const attachment = buildGridAttachment(
+    endResult.grid,
+    endResult.words,
+    endResult.placements,
+    endResult.foundWords,
+    false
+  );
+
+  const gameMessage = await interaction.channel.messages.fetch(session.messageId);
+
+  await gameMessage.edit({
+    embeds: [embed],
+    files: [attachment],
   });
+
+  await interaction.channel.send({
+    content: '⏰ Game ended due to time!',
+  });
+});
 
   // Hint timer
   setHintTimer(channelId, async (cid) => {
