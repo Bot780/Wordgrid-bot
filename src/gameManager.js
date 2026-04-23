@@ -223,14 +223,21 @@ function endGame(channelId, allFound = false) {
   foundWords: session.foundWords,
   unfoundWords,
   scoreboard: getSessionScoreboard(session),
-  gridText: renderGridWithFound(...),
 
-  // 🔥 ADD THESE
+  // ✅ FIXED
+  gridText: renderGridWithFound(
+    session.grid,
+    session.placements,
+    session.foundWords
+  ),
+
+  // ✅ REQUIRED FOR IMAGE
   grid: session.grid,
   words: session.words,
   placements: session.placements,
 
-  duration: ...
+  // ✅ FIXED DURATION
+  duration: Math.floor((Date.now() - session.startTime) / 1000),
 };
 }
 
