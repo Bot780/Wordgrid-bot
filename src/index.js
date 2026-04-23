@@ -182,7 +182,7 @@ client.on(Events.MessageCreate, async (message) => {
 
   const session = getSession(channelId);
 
-  // 🎉 All words found
+  // 🎉 ALL FOUND
   if (result.allFound) {
     const embed = new EmbedBuilder()
       .setColor(0xFFD700)
@@ -201,40 +201,42 @@ client.on(Events.MessageCreate, async (message) => {
 
     const gameMessage = await message.channel.messages.fetch(session.messageId);
 
-await gameMessage.edit({
-  embeds: [embed],
-  files: [attachment]
-});
+    await gameMessage.edit({
+      embeds: [embed],
+      files: [attachment],
+    });
 
-    return; // 🔥 IMPORTANT
+    return;
   }
 
-  // ✅ Normal correct answer
+  // ✅ NORMAL UPDATE (THIS IS THE IMPORTANT PART)
   const embed = new EmbedBuilder()
     .setColor(0x57F287)
     .setTitle(`✅ **${result.word}** found by ${author.username}!`)
     .setDescription(`+**${result.points} points** • ${result.remaining} word(s) remaining`)
-    .addFields({ name: '🏆 Scoreboard', value: result.scoreboard, inline: false })
+    .addFields({
+      name: '🏆 Scoreboard',
+      value: result.scoreboard,
+      inline: false,
+    })
     .setImage('attachment://grid.png');
 
-  if (session) {
-    const attachment = buildGridAttachment(
-      session.grid,
-      session.words,
-      session.placements,
-      session.foundWords,
-      session.hardMode
-    );
+  const attachment = buildGridAttachment(
+    session.grid,
+    session.words,
+    session.placements,
+    session.foundWords,
+    session.hardMode
+  );
 
-    await message.channel.send({
-      embeds: [embed],
-      files: [attachment]
-    });
-  } else {
-    await message.channel.send({ embeds: [embed] });
-  }
+  // 🔥 EDIT EXISTING MESSAGE INSTEAD OF SENDING NEW ONE
+  const gameMessage = await message.channel.messages.fetch(session.messageId);
+
+  await gameMessage.edit({
+    embeds: [embed],
+    files: [attachment],
+  });
 }
-});
 // ─── Helper: Handle /new and /newhard ────────────────────────────────────────
 
 async function handleStartGame(interaction, hardMode) {
