@@ -290,7 +290,7 @@ function drawLetters(ctx, grid, rows, cols, ox, oy, highlights) {
       const y = oy + r * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
 
       const onPill     = highlightedCells.has(`${r},${c}`);
-      ctx.fillStyle = '#17171fcc';
+      ctx.fillStyle = onPill ? THEME.letterOnPill : THEME.letterDefault;
       ctx.shadowColor  = onPill ? 'rgba(0,0,0,0.6)' : 'transparent';
       ctx.shadowBlur   = onPill ? 8 : 0;
 
@@ -310,15 +310,7 @@ function drawWordList(ctx, words, foundWords, ox, startY, gridW) {
   ctx.font         = 'bold 11px Arial, sans-serif';
   ctx.textAlign    = 'left';
   ctx.textBaseline = 'middle';
-  const isFound = foundWords.includes(word);
-
-// Create hint: E_____ (6)
-const hint = word[0] + '_'.repeat(word.length - 1);
-
-// Show full word only if found
-const displayText = isFound ? word : hint;
-
-ctx.fillText(displayText, textX, textY);
+  ctx.fillText('WORDS TO FIND', ox, startY + 9);
 
   const chipW   = Math.floor((gridW - (WORDS_COLS - 1) * 8) / WORDS_COLS);
   const chipH   = WORD_ROW_H - 8;
@@ -331,10 +323,9 @@ ctx.fillText(displayText, textX, textY);
     const chipY = labelY + row * WORD_ROW_H;
     const found = foundWords.includes(word);
 
-    // Find the colour assigned to this word's highlight
     const highlightIdx = foundWords.indexOf(word);
     const chipColor    = found
-      ? PILL_PALETTE[highlightIdx % PILL_PALETTE.length].replace('80', 'ff')
+      ? PILL_PALETTE[highlightIdx % PILL_PALETTE.length].replace('cc', 'ff')
       : null;
 
     // Chip background
@@ -348,15 +339,19 @@ ctx.fillText(displayText, textX, textY);
     roundRect(ctx, chipX, chipY, chipW, chipH, 8);
     ctx.stroke();
 
-    // Word text
+    // ✅ FIXED TEXT LOGIC
     const textX = chipX + chipW / 2;
     const textY = chipY + chipH / 2;
 
-    ctx.fillStyle    = found ? chipColor : THEME.wordPending;
-    ctx.font         = found ? 'bold 13px Arial, sans-serif' : '13px Arial, sans-serif';
-    ctx.textAlign    = 'center';
+    const hint = word[0] + '_'.repeat(word.length - 1);
+    const displayText = found ? word : hint;
+
+    ctx.fillStyle = found ? chipColor : THEME.wordPending;
+    ctx.font = found ? 'bold 13px Arial, sans-serif' : '13px Arial, sans-serif';
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(word, textX, textY);
+
+    ctx.fillText(`${displayText} (${word.length})`, textX, textY);
 
     // Strikethrough for found words
     if (found) {
