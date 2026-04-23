@@ -261,49 +261,48 @@ function drawCells(ctx, grid, rows, cols, ox, oy) {
  * Supports horizontal, vertical, and diagonal directions.
  *
  * The pill is a single rounded capsule that stretches from the first
- * cell's centre to the last cell's centre, rotated to match direction.
- */
+ * cell's centre to the last cell's centre, rotated to match direct */
 function drawPillHighlight(ctx, positions, ox, oy, color) {
-  if (!positions || positions.length < 2) return;
-
-  const first = positions[0];
-  const last  = positions[positions.length - 1];
-
-  const x1 = ox + first.col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
-  const y1 = oy + first.row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
-
-  const x2 = ox + last.col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
-  const y2 = oy + last.row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
-
-  const angle = Math.atan2(y2 - y1, x2 - x1);
-  const dist  = Math.hypot(x2 - x1, y2 - y1);
-
-  const mx = (x1 + x2) / 2;
-  const my = (y1 + y2) / 2;
+  if (!positions?.length) return;
 
   ctx.save();
-  ctx.translate(mx, my);
-  ctx.rotate(angle);
 
-  const halfLen = dist / 2 + CELL_SIZE * 0.3;
-  const halfH   = CELL_SIZE * 0.45;
+  for (const pos of positions) {
+    const x = ox + pos.col * (CELL_SIZE + CELL_GAP);
+    const y = oy + pos.row * (CELL_SIZE + CELL_GAP);
 
-  // ✨ Glow
-  // ✨ layered glow (stronger + softer edges)
-ctx.shadowColor = color;
-ctx.shadowBlur = isLight ? 18 : 28;
+    // 🌈 gradient glow
+    const gradient = ctx.createRadialGradient(
+      x + CELL_SIZE / 2,
+      y + CELL_SIZE / 2,
+      6,
+      x + CELL_SIZE / 2,
+      y + CELL_SIZE / 2,
+      CELL_SIZE / 1.2
+    );
 
-ctx.globalAlpha = isLight ? 0.75 : 0.9;
-ctx.fillStyle = color;
+    gradient.addColorStop(0, color.replace('cc', 'ff')); // strong center
+    gradient.addColorStop(1, color.replace('cc', '00')); // fade out
 
-  ctx.beginPath();
-  ctx.arc(-halfLen + halfH, 0, halfH, Math.PI / 2, -Math.PI / 2, true);
-  ctx.arc( halfLen - halfH, 0, halfH, -Math.PI / 2, Math.PI / 2, true);
-  ctx.closePath();
-  ctx.fill();
+    ctx.fillStyle = gradient;
 
-  ctx.shadowBlur = 0;
-  ctx.shadowColor = 'transparent';
+    // ✨ glow effect
+    ctx.shadowColor = color;
+    ctx.shadowBlur = isLight ? 12 : 22;
+
+    roundRect(
+      ctx,
+      x + 3,
+      y + 3,
+      CELL_SIZE - 6,
+      CELL_SIZE - 6,
+      14
+    );
+
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+  }
 
   ctx.restore();
 }
@@ -330,14 +329,13 @@ function drawLetters(ctx, grid, rows, cols, ox, oy, highlights) {
 
       const onPill = highlightedCells.has(`${r},${c}`);
 
-      ctx.fillStyle = onPill
-        ? '#ffffff'
-        : isLight
-          ? 'rgba(0,0,0,0.35)'
-          : 'rgba(255,255,255,0.35)';
+// 🎯 ALWAYS readable
+ctx.fillStyle = onPill
+  ? (isLight ? '#000000' : '#ffffff')   // strong contrast
+  : (isLight ? '#374151' : '#9ca3af');  // softer background letters
 
-      ctx.shadowColor = onPill ? 'rgba(0,0,0,0.6)' : 'transparent';
-      ctx.shadowBlur = onPill ? 8 : 0;
+ctx.shadowColor = onPill ? 'rgba(0,0,0,0.4)' : 'transparent';
+ctx.shadowBlur = onPill ? 8 : 0;
 
       ctx.fillText(grid[r][c], x, y);
 
