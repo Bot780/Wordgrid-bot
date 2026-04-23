@@ -156,25 +156,23 @@ function buildHighlights(placements, foundWords) {
       const placement = placements.find(p => p.word === word);
       if (!placement) return null;
 
-      // 🔑 unique key for path (prevents overlap color bug)
+      // unique key for path
       const key = `${placement.row}-${placement.col}-${placement.dr}-${placement.dc}`;
 
       let color;
 
       if (usedPaths.has(key)) {
-        // reuse same color if same path (fix KNOW/KNOWN bug)
         color = usedPaths.get(key);
       } else {
         const base = PILL_PALETTE[idx % PILL_PALETTE.length];
 
         color = isLight
-          ? base.replace('cc', '99') // light theme
-          : base.replace('cc', 'bb'); // dark theme
+          ? base.replace('cc', '99') // light theme softer
+          : base.replace('cc', 'bb'); // dark theme stronger
 
         usedPaths.set(key, color);
       }
 
-      // build positions
       const positions = [];
       for (let i = 0; i < word.length; i++) {
         positions.push({
@@ -183,11 +181,7 @@ function buildHighlights(placements, foundWords) {
         });
       }
 
-      return {
-        word,
-        positions,
-        color,
-      };
+      return { word, positions, color };
     })
     .filter(Boolean);
 }
@@ -323,7 +317,7 @@ ctx.shadowBlur = 0;
 ctx.shadowColor = 'transparent';
 
 ctx.restore();
-
+}
 /** Draws all letters. Letters on highlighted cells use the pill-text colour. */
 function drawLetters(ctx, grid, rows, cols, ox, oy, highlights) {
   // Build a set of highlighted cell keys for quick lookup
