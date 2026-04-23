@@ -242,11 +242,34 @@ function getSession(channelId) {
  * Sets the end timer for a session (called after sending the start message).
  * Returns the session.
  */
-function setEndTimer(channelId, callback) {
-  const session = activeSessions.get(channelId);
-  if (!session) return;
-  session.endTimer = setTimeout(() => callback(channelId), GAME_DURATION_MS);
-}
+setEndTimer(channelId, async (cid) => {
+  const session = getSession(cid);
+  const result = endGame(cid, false);
+  if (!result || !session) return;
+
+  const embed = buildGameEndEmbed(result, '⏰ Time\'s Up!')
+    .setImage('attachment://grid.png');
+
+  const attachment = buildGridAttachment(
+    result.grid,
+    result.words,
+    result.placements,
+    result.foundWords,
+    session.hardMode
+  );
+
+  // ✅ EDIT MAIN GAME MESSAGE
+  const gameMessage = await interaction.channel.messages.fetch(session.messageId);
+  await gameMessage.edit({
+    embeds: [embed],
+    files: [attachment],
+  });
+
+  // ✅ SEND EXTRA MESSAGE
+  await interaction.channel.send({
+    content: '⏰ Game ended due to time!',
+  });
+});
 
 /**
  * Sets the hint interval for a session.

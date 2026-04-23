@@ -14,22 +14,41 @@ const { createCanvas } = require('@napi-rs/canvas');
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 
-const THEME = {
-  bg:            '#0f0f14',
-  cellBg:        '#17171f',
-  cellBorder:    '#2a2a40',
-  letterDefault: '#ffffff',
-  letterOnPill:  '#ffffff',
-  headerBg:      '#0f0f14',
-  titleColor:    '#ffffff',
-  modeNormal:    '#4ade80',
-  modeHard:      '#f87171',
-  wordPending:   '#6b7280',
-  wordFound:     '#e2e8f0',
-  progressTrack: '#1e1e2e',
-  progressFill:  '#4ade80',
-  accent:        '#5865f2',
-};
+const isLight = Math.random() < 0.5;
+
+const THEME = isLight
+  ? {
+      bg: '#ffffff',
+      cellBg: '#f3f4f6',
+      cellBorder: '#d1d5db',
+      letterDefault: '#111827',
+      letterOnPill: '#111827',
+      headerBg: '#ffffff',
+      titleColor: '#111827',
+      modeNormal: '#22c55e',
+      modeHard: '#ef4444',
+      wordPending: '#9ca3af',
+      wordFound: '#111827',
+      progressTrack: '#e5e7eb',
+      progressFill: '#22c55e',
+      accent: '#3b82f6',
+    }
+  : {
+      bg: '#0f0f14',
+      cellBg: '#17171f',
+      cellBorder: '#2a2a40',
+      letterDefault: '#ffffff',
+      letterOnPill: '#ffffff',
+      headerBg: '#0f0f14',
+      titleColor: '#ffffff',
+      modeNormal: '#4ade80',
+      modeHard: '#f87171',
+      wordPending: '#6b7280',
+      wordFound: '#e2e8f0',
+      progressTrack: '#1e1e2e',
+      progressFill: '#4ade80',
+      accent: '#5865f2',
+    };
 
 // Palette for auto-assigning highlight colours when not specified
 const PILL_PALETTE = [
@@ -144,10 +163,17 @@ function buildHighlights(placements, foundWords) {
         });
       }
 
+      // ✅ COLOR LOGIC MUST BE HERE (inside map)
+      const base = PILL_PALETTE[idx % PILL_PALETTE.length];
+
+      const color = isLight
+        ? base.replace('cc', '55') // light theme softer
+        : base.replace('cc', '88'); // dark theme stronger
+
       return {
         word,
         positions,
-        color: PILL_PALETTE[idx % PILL_PALETTE.length],
+        color,
       };
     })
     .filter(Boolean);
@@ -231,42 +257,49 @@ function drawCells(ctx, grid, rows, cols, ox, oy) {
  * cell's centre to the last cell's centre, rotated to match direction.
  */
 function drawPillHighlight(ctx, positions, ox, oy, color) {
-  if (!positions || positions.length < 2) return;
+  if (!positions || positions.length < 1) return;
 
   const first = positions[0];
   const last  = positions[positions.length - 1];
 
-  const x1 = ox + first.col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
-  const y1 = oy + first.row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
-  const x2 = ox + last.col  * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
-  const y2 = oy + last.row  * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
+  const x1 = ox + first.col * (CELL_SIZE + CELL_GAP);
+  const y1 = oy + first.row * (CELL_SIZE + CELL_GAP);
 
-  const angle = Math.atan2(y2 - y1, x2 - x1);
-  const dist  = Math.hypot(x2 - x1, y2 - y1);
+  const x2 = ox + last.col * (CELL_SIZE + CELL_GAP);
+  const y2 = oy + last.row * (CELL_SIZE + CELL_GAP);
 
-  const mx = (x1 + x2) / 2;
-  const my = (y1 + y2) / 2;
+  const dx = Math.sign(last.col - first.col);
+  const dy = Math.sign(last.row - first.row);
+
+  const length = positions.length;
+
+  // FULL block size (important)
+  const width  = (dx !== 0 ? length : 1) * CELL_SIZE + (dx !== 0 ? (length - 1) * CELL_GAP : 0);
+  const height = (dy !== 0 ? length : 1) * CELL_SIZE + (dy !== 0 ? (length - 1) * CELL_GAP : 0);
+
+  const startX = Math.min(x1, x2);
+  const startY = Math.min(y1, y2);
+
+  const padding = 6;
+  const radius  = 18;
 
   ctx.save();
-  ctx.translate(mx, my);
-  ctx.rotate(angle);
 
-  const halfLen = dist / 2 + PILL_RADIUS * 1.1;
-  const halfH   = PILL_RADIUS;
-
-  // ✨ Glow
-  ctx.shadowColor = color;
-  ctx.shadowBlur  = 20;
-
+  // ✨ transparent fill (NO glow)
+  ctx.globalAlpha = 0.35;
   ctx.fillStyle = color;
 
-  ctx.beginPath();
-  ctx.arc(-halfLen + halfH, 0, halfH, Math.PI / 2, -Math.PI / 2, true);
-  ctx.arc( halfLen - halfH, 0, halfH, -Math.PI / 2, Math.PI / 2, true);
-  ctx.closePath();
+  roundRect(
+    ctx,
+    startX + padding,
+    startY + padding,
+    width - padding * 2,
+    height - padding * 2,
+    radius
+  );
+
   ctx.fill();
 
-  ctx.shadowBlur = 0;
   ctx.restore();
 }
 
