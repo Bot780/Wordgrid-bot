@@ -310,41 +310,47 @@ ctx.fillStyle = color;
 
 /** Draws all letters. Letters on highlighted cells use the pill-text colour. */
 function drawLetters(ctx, grid, rows, cols, ox, oy, highlights) {
-  // Build a set of highlighted cell keys for quick lookup
   const highlightedCells = new Set();
+
   for (const h of highlights) {
     for (const p of h.positions) {
       highlightedCells.add(`${p.row},${p.col}`);
     }
   }
 
-  ctx.textAlign    = 'center';
+  ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font         = `bold ${Math.round(CELL_SIZE * 0.44)}px Arial, sans-serif`;
+  ctx.font = `bold ${Math.round(CELL_SIZE * 0.44)}px Arial, sans-serif`;
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
+
       const x = ox + c * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
       const y = oy + r * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
 
-      const onPill     = highlightedCells.has(`${r},${c}`);
+      const onPill = highlightedCells.has(`${r},${c}`);
+
       ctx.fillStyle = onPill
-  ? '#ffffff'
-  : isLight
-    ? 'rgba(0,0,0,0.35)'
-    : 'rgba(255,255,255,0.35)';
-      ctx.shadowColor  = onPill ? 'rgba(0,0,0,0.6)' : 'transparent';
-      ctx.shadowBlur   = onPill ? 8 : 0;
+        ? '#ffffff'
+        : isLight
+          ? 'rgba(0,0,0,0.35)'
+          : 'rgba(255,255,255,0.35)';
+
+      ctx.shadowColor = onPill ? 'rgba(0,0,0,0.6)' : 'transparent';
+      ctx.shadowBlur = onPill ? 8 : 0;
 
       ctx.fillText(grid[r][c], x, y);
+
+      // ✅ FIX: keep this INSIDE loop
+      if (onPill) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeText(grid[r][c], x, y);
+      }
     }
   }
-if (onPill) {
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-  ctx.lineWidth = 1.5;
-  ctx.strokeText(grid[r][c], x, y);
-}
-  ctx.shadowBlur  = 0;
+
+  ctx.shadowBlur = 0;
   ctx.shadowColor = 'transparent';
 }
 
