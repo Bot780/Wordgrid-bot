@@ -135,19 +135,20 @@ if (hintData?.error) {
     const totalCount = session.words.length;
     const remaining  = totalCount - foundCount;
 
-    const embed = new EmbedBuilder()
-      .setColor(0x57F287)
-      .setTitle('📊 Current Game Score')
-const hintStatus = session.hintUsed
+    const hintStatus = session.hintUsed
   ? '💡 Used ❌'
-  : '💡 Available ✅';  
-    .addFields(
-  { name: '📝 Progress', value: `Found **${foundCount}/${totalCount}** words • **${remaining}** remaining`, inline: false },
-  { name: '💡 Hint', value: hintStatus, inline: true }, // 👈 ADD THIS LINE
-  { name: '🏆 Scoreboard', value: buildSessionScoreboard(session), inline: false },
-)
-      .setFooter({ text: `Mode: ${session.hardMode ? '🔴 Hard' : '🟢 Normal'} • Time limit: 30 min` })
-      .setImage('attachment://grid.png');
+  : '💡 Available ✅';
+
+const embed = new EmbedBuilder()
+  .setColor(0x57F287)
+  .setTitle('📊 Current Game Score')
+  .addFields(
+    { name: '📝 Progress', value: `Found **${foundCount}/${totalCount}** words • **${remaining}** remaining`, inline: false },
+    { name: '💡 Hint', value: hintStatus, inline: true },
+    { name: '🏆 Scoreboard', value: buildSessionScoreboard(session), inline: false },
+  )
+  .setFooter({ text: `Mode: ${session.hardMode ? '🔴 Hard' : '🟢 Normal'} • Time limit: 30 min` })
+  .setImage('attachment://grid.png');
 
     const attachment = buildGridAttachment(session.grid, session.words, session.placements, session.foundWords, session.hardMode);
 
