@@ -71,7 +71,7 @@ const CELL_GAP     = 2;     // px — gap between cells
 const GRID_MARGIN  = 24;    // px — space around the grid
 const HEADER_H     = 64;    // px — title bar height
 const FOOTER_H     = 14;    // px — bottom padding
-const WORD_ROW_H   = 34;    // px — height of each word-list chip row
+const WORD_ROW_H   = 44;    // px — height of each word-list chip row
 const WORDS_COLS   = 4;     // columns in the word list
 const SECTION_GAP  = 16;    // px — gap between grid and word list
 
@@ -360,8 +360,8 @@ function drawWordList(ctx, words, placements, foundWords, ox, startY, gridW) {
   ctx.fillText('WORDS TO FIND', ox, startY + 9);
 
   const chipW   = Math.floor((gridW - (WORDS_COLS - 1) * 8) / WORDS_COLS);
-  const chipH   = WORD_ROW_H - 8;
-  const labelY  = startY + 18;
+  const chipH   = WORD_ROW_H - 6;
+  const labelY  = startY + 22;
 
   words.forEach((word, i) => {
     const col   = i % WORDS_COLS;
@@ -416,7 +416,7 @@ const chipColor = found
     const displayText = found ? word : hint;
 
     ctx.fillStyle = found ? '#ffffff' : THEME.wordPending;
-    ctx.font = found ? 'bold 13px Arial, sans-serif' : '13px Arial, sans-serif';
+    ctx.font = found ? 'bold 16px Arial, sans-serif' : '15px Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 

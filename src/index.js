@@ -4,7 +4,6 @@ const express = require('express');
 const app = express();
 
 app.get('/', (req, res) => res.send('Bot alive'));
-app.listen(3000);
 
 const PORT = process.env.PORT || 3000;
 
@@ -25,6 +24,7 @@ const {
   startGame,
   processAnswer,
   getHint,
+  getAutoHint,
   endGame,
   hasActiveGame,
   getSession,
@@ -73,42 +73,29 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 
   else if (commandName === 'hint') {
-    if (!hasActiveGame(channelId)) {
-      return interaction.reply({ content: '❌ No active game in this channel. Use `/new` to start one!', ephemeral: true });
-    }
 
-    const hintData = getHint(channelId);
+  await interaction.deferReply({ ephemeral: true }); // 🔥 ADD
 
-if (hintData?.error) {
-  return interaction.reply({
-    content: `❌ ${hintData.error}`,
-    ephemeral: true
-  });
-}
-    if (!hintData) {
-      return interaction.reply({ content: '🎉 All words have been found!', ephemeral: true });
-    }
+  if (!hasActiveGame(channelId)) {
+    return interaction.editReply({ content: '❌ No active game...' });
+  }
 
-    const embed = new EmbedBuilder()
-      .setColor(0xF0A500)
-      .setTitle('💡 Hint!')
-      .setDescription(`One of the remaining words: **\`${hintData.hint}\`**\n\n*${hintData.remaining} word(s) remaining*`)
-      .setFooter({ text: 'Hints are also auto-given after 10 min of inactivity' });
+  const hintData = getHint(channelId);
 
-    await interaction.reply({ embeds: [embed] });
-  setHintTimer(channelId, async (cid) => {
-  const hintData = getAutoHint(cid);
-  if (!hintData) return;
+  if (hintData?.error) {
+    return interaction.editReply({ content: `❌ ${hintData.error}` });
+  }
+
+  if (!hintData) {
+    return interaction.editReply({ content: '🎉 All words found!' });
+  }
 
   const embed = new EmbedBuilder()
     .setColor(0xF0A500)
-    .setTitle('💡 Auto Hint!')
-    .setDescription(
-      `\`${hintData.hint}\`\n\n${hintData.remaining} word(s) remaining`
-    );
+    .setTitle('💡 Hint!')
+    .setDescription(`\`${hintData.hint}\`\n${hintData.remaining} left`);
 
-  await interaction.channel.send({ embeds: [embed] });
-});
+  await interaction.editReply({ embeds: [embed] }); // 🔥 CHANGE
 }
 
   else if (commandName === 'leaderboard') {
@@ -322,19 +309,20 @@ session.messageId = reply.id;
 
   // 30-minute end timer
   setEndTimer(channelId, async (cid) => {
+  const session = getSession(cid); // ✅ GET FIRST
+  if (!session) return;
+
   const endResult = endGame(cid, false);
   if (!endResult) return;
-
-  const session = getSession(cid); // might be null after delete
 
   const embed = buildGameEndEmbed(endResult, "⏰ Time's Up!");
 
   const attachment = buildGridAttachment(
-    endResult.grid,
-    endResult.words,
-    endResult.placements,
-    endResult.foundWords,
-    false
+    session.grid,
+    session.words,
+    session.placements,
+    session.foundWords,
+    session.hardMode
   );
 
   const gameMessage = await interaction.channel.messages.fetch(session.messageId);
