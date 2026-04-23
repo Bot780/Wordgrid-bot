@@ -244,36 +244,6 @@ client.on(Events.MessageCreate, async (message) => {
   }
 }); // ✅ IMPORTANT: CLOSE EVENT
 
-
-
-  // ✅ NORMAL UPDATE (THIS IS THE IMPORTANT PART)
-  // 🔥 EDIT ONLY IMAGE (keep original embed)
-const gameMessage = await message.channel.messages.fetch(session.messageId);
-
-// clone old embed instead of replacing
-const oldEmbed = gameMessage.embeds[0];
-
-const updatedEmbed = EmbedBuilder.from(oldEmbed)
-  .setImage('attachment://grid.png');
-
-await gameMessage.edit({
-  embeds: [updatedEmbed],
-  files: [attachment],
-});
-
-// ✅ SEND SEPARATE SCORE MESSAGE
-await message.channel.send({
-  embeds: [
-    new EmbedBuilder()
-      .setColor(0x57F287)
-      .setTitle(`✅ ${result.word} found by ${author.username}`)
-      .setDescription(`+${result.points} pts • ${result.remaining} left`)
-      .addFields({
-        name: '🏆 Scoreboard',
-        value: result.scoreboard,
-      })
-  ]
-});
 // ─── Helper: Handle /new and /newhard ────────────────────────────────────────
 
 async function handleStartGame(interaction, hardMode) {
