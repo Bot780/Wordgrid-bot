@@ -232,6 +232,7 @@ client.on(Events.MessageCreate, async (message) => {
     await message.channel.send({ embeds: [embed] });
   }
 }
+});
 // ─── Helper: Handle /new and /newhard ────────────────────────────────────────
 
 async function handleStartGame(interaction, hardMode) {
