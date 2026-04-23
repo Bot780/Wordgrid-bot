@@ -119,7 +119,7 @@ function generateGridImage(grid, words, placements, foundWords = [], hardMode = 
 
   // ── 6. Word list ──────────────────────────────────────────────────────────
   const wordListY = oy + gridPixelH + FOOTER_H;
-  drawWordList(ctx, words, foundWords, ox, wordListY, gridPixelW);
+  drawWordList(ctx, words, placements, foundWords, ox, wordListY, gridPixelW);
 
   return canvas.toBuffer('image/png');
 }
@@ -302,7 +302,7 @@ function drawLetters(ctx, grid, rows, cols, ox, oy, highlights) {
 }
 
 /** Draws the word chip list below the grid. */
-function drawWordList(ctx, words, foundWords, ox, startY, gridW) {
+function drawWordList(ctx, words, placements, foundWords, ox, startY, gridW) {
   if (!words.length) return;
 
   // Section label
