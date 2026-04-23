@@ -219,13 +219,19 @@ function endGame(channelId, allFound = false) {
   activeSessions.delete(channelId);
 
   return {
-    allFound,
-    foundWords: session.foundWords,
-    unfoundWords,
-    scoreboard: getSessionScoreboard(session),
-    gridText: renderGridWithFound(session.grid, session.placements, session.foundWords),
-    duration: Math.floor((Date.now() - session.startTime) / 1000),
-  };
+  allFound,
+  foundWords: session.foundWords,
+  unfoundWords,
+  scoreboard: getSessionScoreboard(session),
+  gridText: renderGridWithFound(...),
+
+  // 🔥 ADD THESE
+  grid: session.grid,
+  words: session.words,
+  placements: session.placements,
+
+  duration: ...
+};
 }
 
 /**
