@@ -35,22 +35,24 @@ function startGame(channelId, guildId, hardMode = false) {
   const { grid, words, placements } = generateGrid(hardMode);
 
   const session = {
-    channelId,
-    guildId,
-    hardMode,
-    grid,
-    words,            // all words to find
-    placements,       // placement info for highlighting
-    foundWords: [],   // words found so far
-    scores: {},       // userId -> { username, points }
-    participants: new Set(),
-    startTime: Date.now(),
-    lastAnswerTime: Date.now(),
-    hintGiven: false,
-    hintIndex: 0,
-    endTimer: null,
-    hintTimer: null,
-  };
+  channelId,
+  guildId,
+  hardMode,
+  grid,
+  words,
+  placements,
+  foundWords: [],
+  scores: {},
+  participants: new Set(),
+  startTime: Date.now(),
+  lastAnswerTime: Date.now(),
+
+  hintUsed: false,
+  hintProgress: {},   // word -> revealed letters count
+
+  endTimer: null,
+  hintTimer: null,
+};
 
   activeSessions.set(channelId, session);
   return { session, gridText: renderGrid(grid) };
@@ -118,17 +120,41 @@ function getHint(channelId) {
   const session = activeSessions.get(channelId);
   if (!session) return null;
 
+  // ❌ Only ONE hint per game
+  if (session.hintUsed) {
+    return { error: 'Hint already used in this game!' };
+  }
+
   const unfound = session.words.filter(w => !session.foundWords.includes(w));
   if (!unfound.length) return null;
 
-  // Cycle through unfound words for hints
-  const word = unfound[session.hintIndex % unfound.length];
-  session.hintIndex++;
-  session.hintGiven = true;
+  // Pick random word
+  const word = unfound[Math.floor(Math.random() * unfound.length)];
 
-  // Show first letter + length
-  const hint = `${word[0]}${'_'.repeat(word.length - 1)} (${word.length} letters, ${getPoints(word)} pts)`;
-  return { hint, word, remaining: unfound.length };
+  // Initialize progress
+  if (!session.hintProgress[word]) {
+    session.hintProgress[word] = 1;
+  }
+
+  // Increase reveal
+  session.hintProgress[word] = Math.min(
+    session.hintProgress[word] + 1,
+    word.length
+  );
+
+  const reveal = session.hintProgress[word];
+
+  const hint =
+    word.slice(0, reveal) +
+    '_'.repeat(word.length - reveal);
+
+  session.hintUsed = true;
+
+  return {
+    hint,
+    word,
+    remaining: unfound.length
+  };
 }
 
 /**

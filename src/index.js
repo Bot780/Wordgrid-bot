@@ -65,6 +65,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     const hintData = getHint(channelId);
+
+if (hintData?.error) {
+  return interaction.reply({
+    content: `❌ ${hintData.error}`,
+    ephemeral: true
+  });
+}
     if (!hintData) {
       return interaction.reply({ content: '🎉 All words have been found!', ephemeral: true });
     }
@@ -131,11 +138,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const embed = new EmbedBuilder()
       .setColor(0x57F287)
       .setTitle('📊 Current Game Score')
-      .addFields(
-        { name: '📝 Progress', value: `Found **${foundCount}/${totalCount}** words • **${remaining}** remaining`, inline: false },
-        { name: '✅ Found Words', value: session.foundWords.length ? session.foundWords.map(w => `\`${w}\``).join(', ') : '*None yet*', inline: false },
-        { name: '🏆 Scoreboard', value: buildSessionScoreboard(session), inline: false },
-      )
+const hintStatus = session.hintUsed
+  ? '💡 Used ❌'
+  : '💡 Available ✅';  
+    .addFields(
+  { name: '📝 Progress', value: `Found **${foundCount}/${totalCount}** words • **${remaining}** remaining`, inline: false },
+  { name: '💡 Hint', value: hintStatus, inline: true }, // 👈 ADD THIS LINE
+  { name: '🏆 Scoreboard', value: buildSessionScoreboard(session), inline: false },
+)
       .setFooter({ text: `Mode: ${session.hardMode ? '🔴 Hard' : '🟢 Normal'} • Time limit: 30 min` })
       .setImage('attachment://grid.png');
 
@@ -192,14 +202,39 @@ client.on(Events.MessageCreate, async (message) => {
         .addFields({ name: '🏆 Scoreboard', value: result.scoreboard, inline: false });
 
       // Refresh grid image every 3 finds or when ≤ 2 remain
-      if (session && (session.foundWords.length % 3 === 0 || result.remaining <= 2)) {
+      if (session) {
+  embed.setImage('attachment://grid.png');
+
+  const attachment = buildGridAttachment(
+    session.grid,
+    session.words,
+    session.placements,
+    session.foundWords,
+    session.hardMode
+  );
+
+  await message.channel.send({ embeds: [embed], files: [attachment] });
+} else {
+  await message.channel.send({ embeds: [embed] });
+} {
         embed.setImage('attachment://grid.png');
         const attachment = buildGridAttachment(
           session.grid, session.words, session.placements, session.foundWords, session.hardMode
         );
         await message.channel.send({ embeds: [embed], files: [attachment] });
       } else {
-        await message.channel.send({ embeds: [embed] });
+        const attachment = buildGridAttachment(
+  result.grid,
+  result.words,
+  result.placements,
+  result.foundWords,
+  false
+);
+
+await message.channel.send({
+  embeds: [embed.setImage('attachment://grid.png')],
+  files: [attachment]
+});
       }
     }
   }
@@ -236,7 +271,7 @@ async function handleStartGame(interaction, hardMode) {
     )
     .addFields(
       { name: '⏱ Time Limit', value: '30 minutes', inline: true },
-      { name: '💡 Hints', value: 'Auto-given after 10 min, or `/hint`', inline: true },
+      { name: '💡 Hint', value: 'Available ✅ (1 per game)', inline: true },
       { name: '🏆 Points', value: '3-letter: **2pts** • 4-letter: **3pts** • 5+ letters: **5pts**', inline: false },
     )
     .setImage('attachment://grid.png')
