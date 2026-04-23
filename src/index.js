@@ -199,10 +199,12 @@ client.on(Events.MessageCreate, async (message) => {
       false
     );
 
-    await message.channel.send({
-      embeds: [embed],
-      files: [attachment]
-    });
+    const gameMessage = await message.channel.messages.fetch(session.messageId);
+
+await gameMessage.edit({
+  embeds: [embed],
+  files: [attachment]
+});
 
     return; // 🔥 IMPORTANT
   }

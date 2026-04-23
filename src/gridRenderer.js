@@ -323,7 +323,7 @@ function drawWordList(ctx, words, foundWords, ox, startY, gridW) {
     const chipY = labelY + row * WORD_ROW_H;
     const found = foundWords.includes(word);
 
-    const highlightIdx = foundWords.indexOf(word);
+    const highlightIdx = placements.findIndex(p => p.word === word);
 const chipColor = found
   ? PILL_PALETTE[highlightIdx % PILL_PALETTE.length].replace('cc', '88')
   : null;

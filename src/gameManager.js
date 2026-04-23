@@ -144,9 +144,16 @@ function getHint(channelId) {
 
   const reveal = session.hintProgress[word];
 
-  const hint =
-    word.slice(0, reveal) +
-    '_'.repeat(word.length - reveal);
+  if (!session.hintProgress[word]) {
+  session.hintProgress[word] = 1;
+} else {
+  session.hintProgress[word]++;
+}
+session.hintProgress[word] = Math.min(session.hintProgress[word], word.length - 1);
+const revealed = word.slice(0, session.hintProgress[word]);
+const hidden = '_'.repeat(word.length - session.hintProgress[word]);
+
+const hint = `${revealed}${hidden}`;
 
   session.hintUsed = true;
 
