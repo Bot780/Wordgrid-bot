@@ -237,6 +237,7 @@ await message.channel.send({
       })
   ]
 });
+}); // ✅ CLOSE MessageCreate EVENT
 // ─── Helper: Handle /new and /newhard ────────────────────────────────────────
 
 async function handleStartGame(interaction, hardMode) {
