@@ -151,33 +151,39 @@ function generateGridImage(grid, words, placements, foundWords = [], hardMode = 
  */
 function buildHighlights(placements, foundWords) {
   return foundWords
-    .map((word, idx) => {
-      const placement = placements.find(p => p.word === word);
-      if (!placement) return null;
+    const usedPaths = new Map();
 
-      const positions = [];
-      for (let i = 0; i < word.length; i++) {
-        positions.push({
-          row: placement.row + placement.dr * i,
-          col: placement.col + placement.dc * i,
-        });
-      }
+return foundWords.map((word, idx) => {
+  const placement = placements.find(p => p.word === word);
+  if (!placement) return null;
 
-      // ✅ COLOR LOGIC MUST BE HERE (inside map)
-      const base = PILL_PALETTE[idx % PILL_PALETTE.length];
+  const key = `${placement.row}-${placement.col}-${placement.dr}-${placement.dc}`;
 
-      const color = isLight
-        ? base.replace('cc', '55') // light theme softer
-        : base.replace('cc', '88'); // dark theme stronger
+  let color;
 
-      return {
-        word,
-        positions,
-        color,
-      };
-    })
-    .filter(Boolean);
-}
+  if (usedPaths.has(key)) {
+    // same position → reuse color
+    color = usedPaths.get(key);
+  } else {
+    const base = PILL_PALETTE[idx % PILL_PALETTE.length];
+
+    color = isLight
+      ? base.replace('cc', '99')
+      : base.replace('cc', 'bb');
+
+    usedPaths.set(key, color);
+  }
+
+  const positions = [];
+  for (let i = 0; i < word.length; i++) {
+    positions.push({
+      row: placement.row + placement.dr * i,
+      col: placement.col + placement.dc * i,
+    });
+  }
+
+  return { word, positions, color };
+}).filter(Boolean);
 
 /** Draws the title header bar. */
 function drawHeader(ctx, canvasW, hardMode, found, total) {
@@ -285,23 +291,31 @@ function drawPillHighlight(ctx, positions, ox, oy, color) {
 
   ctx.save();
 
-  // ✨ transparent fill (NO glow)
-  ctx.globalAlpha = 0.35;
-  ctx.fillStyle = color;
+// ✨ SET GLOW FIRST
+ctx.shadowColor = color;
+ctx.shadowBlur = isLight ? 12 : 20;
 
-  roundRect(
-    ctx,
-    startX + padding,
-    startY + padding,
-    width - padding * 2,
-    height - padding * 2,
-    radius
-  );
+// transparency of the pill itself
+ctx.globalAlpha = isLight ? 0.6 : 0.8;
 
-  ctx.fill();
+ctx.fillStyle = color;
 
-  ctx.restore();
-}
+roundRect(
+  ctx,
+  startX + padding,
+  startY + padding,
+  width - padding * 2,
+  height - padding * 2,
+  radius
+);
+
+ctx.fill();
+
+// ❌ VERY IMPORTANT: reset shadow after drawing
+ctx.shadowBlur = 0;
+ctx.shadowColor = 'transparent';
+
+ctx.restore();
 
 /** Draws all letters. Letters on highlighted cells use the pill-text colour. */
 function drawLetters(ctx, grid, rows, cols, ox, oy, highlights) {
