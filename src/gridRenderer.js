@@ -147,43 +147,50 @@ function generateGridImage(grid, words, placements, foundWords = [], hardMode = 
 
 /**
  * Converts a placement + foundWords list into highlight descriptor objects.
- * { positions: [{row,col}, ...], color: string }
- */
+ * { positions: [{row,col}, ...],  */
 function buildHighlights(placements, foundWords) {
+  const usedPaths = new Map();
+
   return foundWords
-    const usedPaths = new Map();
+    .map((word, idx) => {
+      const placement = placements.find(p => p.word === word);
+      if (!placement) return null;
 
-return foundWords.map((word, idx) => {
-  const placement = placements.find(p => p.word === word);
-  if (!placement) return null;
+      // 🔑 unique key for path (prevents overlap color bug)
+      const key = `${placement.row}-${placement.col}-${placement.dr}-${placement.dc}`;
 
-  const key = `${placement.row}-${placement.col}-${placement.dr}-${placement.dc}`;
+      let color;
 
-  let color;
+      if (usedPaths.has(key)) {
+        // reuse same color if same path (fix KNOW/KNOWN bug)
+        color = usedPaths.get(key);
+      } else {
+        const base = PILL_PALETTE[idx % PILL_PALETTE.length];
 
-  if (usedPaths.has(key)) {
-    // same position → reuse color
-    color = usedPaths.get(key);
-  } else {
-    const base = PILL_PALETTE[idx % PILL_PALETTE.length];
+        color = isLight
+          ? base.replace('cc', '99') // light theme
+          : base.replace('cc', 'bb'); // dark theme
 
-    color = isLight
-      ? base.replace('cc', '99')
-      : base.replace('cc', 'bb');
+        usedPaths.set(key, color);
+      }
 
-    usedPaths.set(key, color);
-  }
+      // build positions
+      const positions = [];
+      for (let i = 0; i < word.length; i++) {
+        positions.push({
+          row: placement.row + placement.dr * i,
+          col: placement.col + placement.dc * i,
+        });
+      }
 
-  const positions = [];
-  for (let i = 0; i < word.length; i++) {
-    positions.push({
-      row: placement.row + placement.dr * i,
-      col: placement.col + placement.dc * i,
-    });
-  }
-
-  return { word, positions, color };
-}).filter(Boolean);
+      return {
+        word,
+        positions,
+        color,
+      };
+    })
+    .filter(Boolean);
+}
 
 /** Draws the title header bar. */
 function drawHeader(ctx, canvasW, hardMode, found, total) {

@@ -48,6 +48,7 @@ function startGame(channelId, guildId, hardMode = false) {
   lastAnswerTime: Date.now(),
 
   hintUsed: false,
+autoHintUsed: false,
   hintProgress: {},   // word -> revealed letters count
 
   endTimer: null,
@@ -120,7 +121,6 @@ function getHint(channelId) {
   const session = activeSessions.get(channelId);
   if (!session) return null;
 
-  // ❌ Only ONE hint per game
   if (session.hintUsed) {
     return { error: 'Hint already used in this game!' };
   }
@@ -128,41 +128,62 @@ function getHint(channelId) {
   const unfound = session.words.filter(w => !session.foundWords.includes(w));
   if (!unfound.length) return null;
 
-  // Pick random word
   const word = unfound[Math.floor(Math.random() * unfound.length)];
 
-  // Initialize progress
   if (!session.hintProgress[word]) {
     session.hintProgress[word] = 1;
   }
 
-  // Increase reveal
   session.hintProgress[word] = Math.min(
     session.hintProgress[word] + 1,
-    word.length
+    word.length - 1
   );
 
-  const reveal = session.hintProgress[word];
+  const revealed = word.slice(0, session.hintProgress[word]);
+  const hidden = '_'.repeat(word.length - session.hintProgress[word]);
 
-  if (!session.hintProgress[word]) {
-  session.hintProgress[word] = 1;
-} else {
-  session.hintProgress[word]++;
-}
-session.hintProgress[word] = Math.min(session.hintProgress[word], word.length - 1);
-const revealed = word.slice(0, session.hintProgress[word]);
-const hidden = '_'.repeat(word.length - session.hintProgress[word]);
-
-const hint = `${revealed}${hidden}`;
-
-  session.hintUsed = true;
+  session.hintUsed = true; // ✅ ONLY manual uses this
 
   return {
-    hint,
+    hint: `${revealed}${hidden}`,
     word,
     remaining: unfound.length
   };
 }
+
+// auto hint 
+function getAutoHint(channelId) {
+  const session = activeSessions.get(channelId);
+  if (!session) return null;
+
+  if (session.autoHintUsed) return null;
+
+  const unfound = session.words.filter(w => !session.foundWords.includes(w));
+  if (!unfound.length) return null;
+
+  const word = unfound[Math.floor(Math.random() * unfound.length)];
+
+  if (!session.hintProgress[word]) {
+    session.hintProgress[word] = 1;
+  }
+
+  session.hintProgress[word] = Math.min(
+    session.hintProgress[word] + 1,
+    word.length - 1
+  );
+
+  const revealed = word.slice(0, session.hintProgress[word]);
+  const hidden = '_'.repeat(word.length - session.hintProgress[word]);
+
+  session.autoHintUsed = true; // ✅ separate flag
+
+  return {
+    hint: `${revealed}${hidden}`,
+    word,
+    remaining: unfound.length
+  };
+}
+
 
 /**
  * Checks if hint should be given (10 min without answer).
@@ -251,22 +272,28 @@ function setEndTimer(channelId, callback) {
 }
 
 /**
- * Sets the hint interval for a session.
- */
+ * Sets the hint interval for a session. */
 function setHintTimer(channelId, callback) {
   const session = activeSessions.get(channelId);
   if (!session) return;
+
   session.hintTimer = setInterval(() => {
-    if (shouldGiveHint(channelId)) {
+    const s = activeSessions.get(channelId);
+    if (!s) return;
+
+    if (s.autoHintUsed) return;
+
+    if (Date.now() - s.lastAnswerTime >= HINT_INTERVAL_MS) {
       callback(channelId);
     }
-  }, 60 * 1000); // check every minute
+  }, 60000);
 }
 
 module.exports = {
   startGame,
   processAnswer,
   getHint,
+  getAutoHint,
   endGame,
   hasActiveGame,
   getSession,

@@ -83,7 +83,20 @@ if (hintData?.error) {
       .setFooter({ text: 'Hints are also auto-given after 10 min of inactivity' });
 
     await interaction.reply({ embeds: [embed] });
-  }
+  setHintTimer(channelId, async (cid) => {
+  const hintData = getAutoHint(cid);
+  if (!hintData) return;
+
+  const embed = new EmbedBuilder()
+    .setColor(0xF0A500)
+    .setTitle('💡 Auto Hint!')
+    .setDescription(
+      `\`${hintData.hint}\`\n\n${hintData.remaining} word(s) remaining`
+    );
+
+  await interaction.channel.send({ embeds: [embed] });
+});
+}
 
   else if (commandName === 'leaderboard') {
     const type = interaction.options.getString('type') || 'local';
