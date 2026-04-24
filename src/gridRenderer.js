@@ -376,8 +376,6 @@ function drawWordList(ctx, words, placements, foundWords, highlights, ox, wordLi
 
     const highlight = highlights.find(h => h.word === word);
 const chipColor = found && highlight ? highlight.color : null;
-  ? PILL_PALETTE[highlightIdx % PILL_PALETTE.length].replace('cc', '88')
-  : null;
 
     // Chip background
     if (found) {
