@@ -355,7 +355,9 @@ function drawWordList(ctx, words, placements, foundWords, highlights, ox, wordLi
   if (!words.length) return;
 
   // Section label
-  ctx.fillStyle = isLight ? '#000000' : '#ffffff';
+  ctx.fillStyle = found
+  ? THEME.letterOnPill
+  : (isLight ? '#000000' : '#ffffff');
   ctx.font         = 'bold 11px Arial, sans-serif';
   ctx.textAlign    = 'left';
   ctx.textBaseline = 'middle';
@@ -386,9 +388,7 @@ function drawWordList(ctx, words, placements, foundWords, highlights, ox, wordLi
       ctx.shadowBlur  = 0;
       ctx.shadowColor = 'transparent';
     } else {
-      ctx.fillStyle = found
-  ? THEME.letterOnPill
-  : (isLight ? '#000000' : '#ffffff');
+      ctx.fillStyle = isLight ? '#00000008' : '#ffffff08';
       roundRect(ctx, chipX, chipY, chipW, chipH, 8);
       ctx.fill();
     }
