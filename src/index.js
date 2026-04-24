@@ -380,3 +380,4 @@ client.on('error', console.error);
 // ─── Login ──────────────────────────────────────────────
 
 client.login(process.env.DISCORD_TOKEN);
+});
