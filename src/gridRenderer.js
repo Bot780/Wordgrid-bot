@@ -353,6 +353,7 @@ function drawLetters(ctx, grid, rows, cols, ox, oy, highlights) {
  */
 function drawWordList(ctx, words, placements, foundWords, highlights, ox, wordListY, gridPixelW) {
   if (!words.length) return;
+  const found = foundWords.includes(word);
 
   // Section label
   ctx.fillStyle = found
