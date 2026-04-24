@@ -15,19 +15,6 @@ const commands = [
     .setDescription('Request a hint for the current puzzle'),
 
   new SlashCommandBuilder()
-    .setName('leaderboard')
-    .setDescription('View the leaderboard')
-    .addStringOption(option =>
-      option.setName('type')
-        .setDescription('Choose leaderboard type')
-        .setRequired(false)
-        .addChoices(
-          { name: 'Local (this server)', value: 'local' },
-          { name: 'Global (all servers)', value: 'global' },
-        )
-    ),
-
-  new SlashCommandBuilder()
     .setName('endgame')
     .setDescription('End the current game early'),
 
