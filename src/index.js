@@ -329,6 +329,9 @@ attachTimers(channelId);
 function attachTimers(channelId) {
 setEndTimer(channelId, async (cid) => {
 const session = getSession(cid);
+if (!session) return;
+
+// ✅ SAVE SOLUTION BEFORE ENDING
 global.solutions = global.solutions || {};
 global.solutions[cid] = {
   grid: session.grid,
@@ -336,8 +339,9 @@ global.solutions[cid] = {
   placements: session.placements,
   hardMode: session.hardMode
 };
+
 const result = endGame(cid, false);
-if (!session || !result) return;
+if (!result) return;
 
 const channel = await client.channels.fetch(session.channelId).catch(() => null);
 if (!channel) return;
