@@ -138,7 +138,16 @@ function generateGridImage(grid, words, placements, foundWords = [], hardMode = 
 
   // ── 6. Word list ──────────────────────────────────────────────────────────
   const wordListY = oy + gridPixelH + FOOTER_H;
-  drawWordList(ctx, words, placements, foundWords, ox, wordListY, gridPixelW);
+
+drawWordList(
+  ctx,
+  words,
+  placements,
+  foundWords,
+  ox,
+  wordListY,   // ✅ this was missing
+  gridPixelW   // or gridW (use whatever you defined)
+);
 
   return canvas.toBuffer('image/png');
 }
