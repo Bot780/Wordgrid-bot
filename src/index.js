@@ -503,13 +503,13 @@ function attachTimers(channelId) {
  */
 function buildGridAttachment(grid, words, placements, foundWords, hardMode, isLight) {
   const buffer = generateGridImage(
-    grid,
-    words,
-    placements,
-    foundWords ?? [],
-    hardMode,
-    isLight,          // ← per-game theme (null = random, which is the safe fallback)
-  );
+  grid,
+  words,
+  placements,
+  foundWords,
+  hardMode,
+  session.isLight   // ⭐ THIS IS THE FIX
+)
   return new AttachmentBuilder(buffer, { name: 'grid.png' });
 }
 

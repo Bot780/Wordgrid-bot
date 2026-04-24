@@ -107,7 +107,7 @@ const SECTION_GAP = 16;
  *                                  Omit (or pass null) to roll randomly.
  * @returns {Buffer} PNG buffer
  */
-function generateGridImage(grid, words, placements, foundWords = [], hardMode = false, isLight = null) {
+function generateGridImage(grid, words, placements, foundWords = [], hardMode = false, isLight = false) {
   if (!grid?.length || !grid[0]?.length) throw new Error('generateGridImage: grid is empty or invalid');
   foundWords = Array.isArray(foundWords) ? foundWords : [];
 
