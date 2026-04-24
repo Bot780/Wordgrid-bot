@@ -54,7 +54,7 @@ GatewayIntentBits.MessageContent,
 // ─── Ready ──────────────────────────────────────────────
 
 client.once(Events.ClientReady, async (c) => {
-console.log("✅ Logged in as ${c.user.tag}");
+console.log(`✅ Logged in as ${c.user.tag}`);
 c.user.setActivity('Word Grid 🔤', { type: ActivityType.Playing });
 
 const restored = loadPersistedSessions();
@@ -329,6 +329,13 @@ attachTimers(channelId);
 function attachTimers(channelId) {
 setEndTimer(channelId, async (cid) => {
 const session = getSession(cid);
+global.solutions = global.solutions || {};
+global.solutions[cid] = {
+  grid: session.grid,
+  words: session.words,
+  placements: session.placements,
+  hardMode: session.hardMode
+};
 const result = endGame(cid, false);
 if (!session || !result) return;
 
@@ -352,7 +359,7 @@ await msg.edit({
 
 });
 }
-
+}); // ✅ CLOSE interaction handler
 // ─── Helpers ────────────────────────────────────────────
 
 function buildGridAttachment(grid, words, placements, foundWords, hardMode) {
