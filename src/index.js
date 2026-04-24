@@ -15,9 +15,9 @@ EmbedBuilder,
 AttachmentBuilder,
 Events,
 ActivityType,
-ActionRowBuilder,        // ✅ ADDED
-ButtonBuilder,           // ✅ ADDED
-ButtonStyle,             // ✅ ADDED
+ActionRowBuilder,
+ButtonBuilder,
+ButtonStyle
 } = require('discord.js');
 
 const {
@@ -58,6 +58,7 @@ console.log("✅ Logged in as ${c.user.tag}");
 c.user.setActivity('Word Grid 🔤', { type: ActivityType.Playing });
 
 const restored = loadPersistedSessions();
+
 for (const { channelId, session } of restored) {
 const elapsed = Date.now() - session.startTime;
 const maxMs = 30 * 60 * 1000;
@@ -75,11 +76,19 @@ if (elapsed >= maxMs) {
     if (msg) {
       await msg.edit({
         embeds: [buildGameEndEmbed(result, "⏰ Time's Up! (bot restarted)")],
-        files: [buildGridAttachment(result.grid, result.words, result.placements, result.foundWords, result.hardMode)],
+        files: [buildGridAttachment(
+          result.grid,
+          result.words,
+          result.placements,
+          result.foundWords,
+          result.hardMode
+        )],
       }).catch(console.error);
     }
 
-    await channel.send({ content: '⏰ The previous game expired while the bot was offline.' }).catch(() => {});
+    await channel.send({
+      content: '⏰ The previous game expired while the bot was offline.'
+    }).catch(() => {});
   } catch (err) {
     console.error('[Restore] Error ending expired session:', err.message);
   }
@@ -94,7 +103,7 @@ if (elapsed >= maxMs) {
 
 client.on(Events.InteractionCreate, async (interaction) => {
 
-// 🔥 BUTTON HANDLER (ADDED)
+// 🔥 BUTTON HANDLER
 if (interaction.isButton()) {
 if (interaction.customId.startsWith('solution_')) {
 const channelId = interaction.customId.split('_')[1];
@@ -111,7 +120,7 @@ const session = getSession(channelId);
     session.grid,
     session.words,
     session.placements,
-    session.words,
+    session.words, // solved grid
     session.hardMode
   );
 
@@ -128,39 +137,64 @@ if (!interaction.isChatInputCommand()) return;
 
 const { commandName, channelId, guildId } = interaction;
 
+// ── /endgame ─────────────────────────────────────────
 if (commandName === 'endgame') {
+try {
 await interaction.deferReply();
 
-if (!hasActiveGame(channelId)) {
-  return interaction.editReply({ content: '❌ No active game in this channel.' });
+  if (!hasActiveGame(channelId)) {
+    return interaction.editReply({
+      content: '❌ No active game in this channel.'
+    });
+  }
+
+  const session = getSession(channelId);
+  if (!session) {
+    return interaction.editReply({
+      content: '❌ Session not found.'
+    });
+  }
+
+  const result = endGame(channelId, false);
+  if (!result) {
+    return interaction.editReply({
+      content: '❌ Could not end game.'
+    });
+  }
+
+  const embed = buildGameEndEmbed(result, '⛔ Game Ended Early');
+
+  const attachment = buildGridAttachment(
+    session.grid,
+    session.words,
+    session.placements,
+    session.words, // full solution
+    session.hardMode
+  );
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`solution_${channelId}`)
+      .setLabel('📖 View Solution')
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  await interaction.editReply({
+    embeds: [embed],
+    files: [attachment],
+    components: [row]
+  });
+
+} catch (err) {
+  console.error('Endgame error:', err);
+
+  if (!interaction.replied) {
+    await interaction.reply({
+      content: '❌ Something went wrong.',
+      ephemeral: true
+    }).catch(() => {});
+  }
 }
-
-const session = getSession(channelId);
-const result = endGame(channelId, false);
-
-const embed = buildGameEndEmbed(result, '⛔ Game Ended Early');
-
-const attachment = buildGridAttachment(
-  session.grid,
-  session.words,
-  session.placements,
-  session.words,
-  session.hardMode
-);
-
-// 🔥 BUTTON
-const row = new ActionRowBuilder().addComponents(
-  new ButtonBuilder()
-    .setCustomId(`solution_${channelId}`)
-    .setLabel('📖 View Solution')
-    .setStyle(ButtonStyle.Primary)
-);
-
-await interaction.editReply({
-  embeds: [embed],
-  files: [attachment],
-  components: [row]
-});
 
 }
 });
@@ -174,32 +208,36 @@ const session = getSession(cid);
 const endResult = endGame(cid, false);
 if (!endResult || !session) return;
 
-const channel = await client.channels.fetch(session.channelId).catch(() => null);
-if (!channel) return;
+try {
+  const channel = await client.channels.fetch(session.channelId).catch(() => null);
+  if (!channel) return;
 
-const gameMessage = await channel.messages.fetch(session.messageId).catch(() => null);
+  const gameMessage = await channel.messages.fetch(session.messageId).catch(() => null);
 
-if (gameMessage) {
+  if (gameMessage) {
 
-  // 🔥 BUTTON
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`solution_${cid}`)
-      .setLabel('📖 View Solution')
-      .setStyle(ButtonStyle.Primary)
-  );
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`solution_${cid}`)
+        .setLabel('📖 View Solution')
+        .setStyle(ButtonStyle.Primary)
+    );
 
-  await gameMessage.edit({
-    embeds: [buildGameEndEmbed(endResult, "⏰ Time's Up!")],
-    files: [buildGridAttachment(
-      endResult.grid,
-      endResult.words,
-      endResult.placements,
-      endResult.foundWords,
-      endResult.hardMode
-    )],
-    components: [row]
-  }).catch(console.error);
+    await gameMessage.edit({
+      embeds: [buildGameEndEmbed(endResult, "⏰ Time's Up!")],
+      files: [buildGridAttachment(
+        endResult.grid,
+        endResult.words,
+        endResult.placements,
+        endResult.foundWords,
+        endResult.hardMode
+      )],
+      components: [row]
+    }).catch(console.error);
+  }
+
+} catch (err) {
+  console.error('[EndTimer] Error:', err.message);
 }
 
 });
@@ -217,6 +255,11 @@ return new EmbedBuilder()
 .setTitle(title)
 .setDescription(result.scoreboard);
 }
+
+// ─── Safety ───────────────────────────────────────────────────────────────────
+
+process.on('unhandledRejection', console.error);
+client.on('error', console.error);
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 
