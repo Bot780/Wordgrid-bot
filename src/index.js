@@ -244,6 +244,72 @@ return interaction.editReply({ embeds: [embed], files: [attachment] });
 
 }
 
+client.on(Events.MessageCreate, async (message) => {
+  if (message.author.bot) return;
+
+  const channelId = message.channel.id;
+
+  // ❌ no active game
+  if (!hasActiveGame(channelId)) return;
+
+  const guess = message.content.trim().toLowerCase();
+
+  const result = processAnswer(
+    channelId,
+    message.author.id,
+    message.author.username,
+    guess
+  );
+
+  if (!result) return;
+
+  // ♻️ already found
+  if (result.alreadyFound) {
+    return message.react('♻️').catch(() => {});
+  }
+
+  // ❌ wrong guess → ignore
+  if (!result.correct) return;
+
+  // ✅ correct word
+  await message.react('✅').catch(() => {});
+
+  const pts = result.points ?? 0;
+
+  // 🏆 scoreboard
+  const session = getSession(channelId);
+
+  const scoreboard =
+    Object.values(session.scores || {})
+      .sort((a, b) => b.points - a.points)
+      .map((s, i) =>
+        `${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '•'} ${s.username} — ${s.points} pts`
+      )
+      .join('\n') || '*No scores yet!*';
+
+  // 🎯 embed (like your screenshot)
+  const embed = new EmbedBuilder()
+    .setColor(0x57F287)
+    .setDescription(
+      `✅ **${result.word.toUpperCase()}** found by **${message.author.username}**\n` +
+      `+${pts} pts • ${result.remaining} left`
+    )
+    .addFields({
+      name: '🏆 Scoreboard',
+      value: scoreboard
+    });
+
+  await message.channel.send({ embeds: [embed] });
+
+  // 🎉 all words found
+  if (result.completed) {
+    endGame(channelId, true);
+
+    await message.channel.send({
+      content: '🎉 All words found!',
+    });
+  }
+});
 // ─── Start Game ─────────────────────────────────────────
 
 async function handleStartGame(interaction, hardMode) {

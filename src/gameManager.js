@@ -193,50 +193,63 @@ function processAnswer(channelId, userId, username, answer) {
 
   const upperAnswer = answer.toUpperCase().trim();
 
-  if (!isValidAnswer(upperAnswer, session.words)) return null;
-
-  if (session.foundWords.includes(upperAnswer)) {
-    return { alreadyFound: true, word: upperAnswer };
+  // ❌ not a valid word
+  if (!isValidAnswer(upperAnswer, session.words)) {
+    return { correct: false };
   }
 
+  // ♻️ already found
+  if (session.foundWords.includes(upperAnswer)) {
+    return {
+      correct: false,
+      alreadyFound: true,
+      word: upperAnswer
+    };
+  }
+
+  // ✅ correct word
   const points = getPoints(upperAnswer);
+
   session.foundWords.push(upperAnswer);
   session.lastAnswerTime = Date.now();
-  session.hintGiven      = false;
+  session.hintGiven = false;
 
   if (!session.scores[userId]) {
     session.scores[userId] = { username, points: 0 };
   }
-  session.scores[userId].points   += points;
-  session.scores[userId].username  = username;
+
+  session.scores[userId].points += points;
+  session.scores[userId].username = username;
   session.participants.add(userId);
 
   addPoints(userId, username, session.guildId, points);
   persistSessions();
 
   const remaining = session.words.length - session.foundWords.length;
-  const allFound  = remaining === 0;
+  const completed = remaining === 0;
 
-  // End the game *before* building the result so endGame can clear timers
-  if (allFound) {
+  // end game if finished
+  if (completed) {
     endGame(channelId, true);
   }
 
   return {
-    correct:    true,
-    word:       upperAnswer,
+    correct: true,
+    alreadyFound: false,
+    word: upperAnswer,
     points,
     remaining,
-    allFound,
-    gridText:   renderGridWithFound(session.grid, session.placements, session.foundWords),
+    completed, // ✅ FIXED NAME
     scoreboard: getSessionScoreboard(session),
-    grid:       session.grid,
-    words:      session.words,
+
+    // extra (optional but useful)
+    grid: session.grid,
+    words: session.words,
     placements: session.placements,
     foundWords: session.foundWords,
-    hardMode:   session.hardMode,
-    messageId:  session.messageId,
-    channelId:  session.channelId,
+    hardMode: session.hardMode,
+    messageId: session.messageId,
+    channelId: session.channelId,
   };
 }
 
