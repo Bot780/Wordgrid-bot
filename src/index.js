@@ -368,7 +368,7 @@ return new EmbedBuilder()
 
 function buildSessionScoreboard(session) {
 return Object.values(session.scores || {})
-.map(s => "${s.username}: ${s.points}")
+.map(s => `${s.username}: ${s.points}`)
 .join('\n') || 'No scores';
 }
 
@@ -380,4 +380,3 @@ client.on('error', console.error);
 // ─── Login ──────────────────────────────────────────────
 
 client.login(process.env.DISCORD_TOKEN);
-
