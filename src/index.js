@@ -358,7 +358,6 @@ session.channelId = interaction.channelId; // 🔥 ADD THIS
     console.error('Could not send hint:', err);
   }
 });
-}
 
 // ─── Helper: Build AttachmentBuilder from grid state ─────────────────────────
 
