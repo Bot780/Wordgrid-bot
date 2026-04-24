@@ -144,6 +144,7 @@ drawWordList(
   words,
   placements,
   foundWords,
+  highlights,
   ox,
   wordListY,   // ✅ this was missing
   gridPixelW   // or gridW (use whatever you defined)
@@ -370,11 +371,11 @@ function drawWordList(ctx, words, placements, foundWords, highlights, ox, wordLi
   ctx.font         = 'bold 11px Arial, sans-serif';
   ctx.textAlign    = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText('WORDS TO FIND', ox, startY + 9);
+  ctx.fillText('WORDS TO FIND', ox, wordListY + 9);
 
-  const chipW   = Math.floor((gridW - (WORDS_COLS - 1) * 8) / WORDS_COLS);
+  const chipW   = Math.floor((gridPixelW - (WORDS_COLS - 1) * 8) / WORDS_COLS);
   const chipH   = WORD_ROW_H - 6;
-  const labelY  = startY + 22;
+  const labelY  = wordListY + 22;
 
   words.forEach((word, i) => {
     const col   = i % WORDS_COLS;
