@@ -103,14 +103,23 @@ function processAnswer(channelId, userId, username, answer) {
   }
 
   return {
-    correct: true,
-    word: upperAnswer,
-    points,
-    remaining,
-    allFound,
-    gridText,
-    scoreboard: getSessionScoreboard(session),
-  };
+  correct: true,
+  word: upperAnswer,
+  points,
+  remaining,
+  allFound,
+  gridText,
+  scoreboard: getSessionScoreboard(session),
+
+  // 🔥 ADD THESE
+  grid: session.grid,
+  words: session.words,
+  placements: session.placements,
+  foundWords: session.foundWords,
+  hardMode: session.hardMode,
+
+  session // 👈 VERY IMPORTANT
+};
 }
 
 /**

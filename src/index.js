@@ -192,7 +192,7 @@ client.on(Events.MessageCreate, async (message) => {
   if (result.correct) {
     await message.react('✅');
 
-    const session = getSession(channelId);
+    const session = getSession(channelId) || result.session;
 
     // 🎉 ALL FOUND
     if (result.allFound) {
