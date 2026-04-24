@@ -137,7 +137,7 @@ function generateGridImage(grid, words, placements, foundWords = [], hardMode = 
   drawLetters(ctx, grid, rows, cols, ox, oy, highlights);
 
   // ── 6. Word list ──────────────────────────────────────────────────────────
-  const wordListY = oy + gridPixelH + FOOTER_H;
+  const wordListY = oy + gridPixelH + SECTION_GAP;
 
 drawWordList(
   ctx,
