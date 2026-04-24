@@ -339,7 +339,7 @@ session.messageId = reply.id;
 
   // Hint timer
   setHintTimer(channelId, async (cid) => {
-    const hintData = getHint(cid);
+    const hintData = getAutoHint(cid);
     if (!hintData) return;
 
     const hintEmbed = new EmbedBuilder()

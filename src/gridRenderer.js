@@ -181,7 +181,7 @@ function buildHighlights(placements, foundWords) {
         });
       }
 
-      return { word, positions, color };
+      return { word, positions, color, index: idx };
     })
     .filter(Boolean);
 }
@@ -353,7 +353,7 @@ ctx.shadowBlur = onPill ? 8 : 0;
 }
 
 /** Draws the word chip list below the grid. */
-function drawWordList(ctx, words, placements, foundWords, ox, startY, gridW) {
+function drawWordList(ctx, words, placements, foundWords, highlights, ox, wordListY, gridPixelW) {
   if (!words.length) return;
 
   // Section label
@@ -374,7 +374,8 @@ function drawWordList(ctx, words, placements, foundWords, ox, startY, gridW) {
     const chipY = labelY + row * WORD_ROW_H;
     const found = foundWords.includes(word);
 
-    const highlightIdx = placements.findIndex(p => p.word === word);
+    const highlight = highlights.find(h => h.word === word);
+const chipColor = highlight ? highlight.color : null;
 const chipColor = found
   ? PILL_PALETTE[highlightIdx % PILL_PALETTE.length].replace('cc', '88')
   : null;
