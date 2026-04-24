@@ -73,19 +73,16 @@ if (interaction.isButton()) {
 
     const channelId = interaction.customId.split('_')[1];
 
-    console.log("🔍 Fetching solution for", channelId);
-
-    const solution = global.solutions?.[channelId];
+    const solution =
+      global.solutions?.[channelId] ||
+      getSession(channelId); // fallback
 
     if (!solution) {
-      console.log("❌ No solution found");
       return interaction.reply({
         content: '❌ Solution expired.',
         ephemeral: true
       });
     }
-
-    console.log("✅ Solution found");
 
     const attachment = buildGridAttachment(
       solution.grid,
@@ -95,10 +92,11 @@ if (interaction.isButton()) {
       solution.hardMode
     );
 
-    return interaction.reply({
+    await interaction.deferReply({ ephemeral: true });
+
+    return interaction.editReply({
       content: '📖 Full solution:',
-      files: [attachment],
-      ephemeral: true
+      files: [attachment]
     });
   }
 }
