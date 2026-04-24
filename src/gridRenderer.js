@@ -354,10 +354,8 @@ function drawLetters(ctx, grid, rows, cols, ox, oy, highlights) {
 function drawWordList(ctx, words, placements, foundWords, highlights, ox, wordListY, gridPixelW) {
   if (!words.length) return;
 
-  // ✅ SECTION LABEL (always readable)
-  ctx.fillStyle = found
-  ? THEME.letterOnPill
-  : (isLight ? '#000000' : '#ffffff');
+  // ── SECTION LABEL ──
+  ctx.fillStyle = isLight ? '#000000' : '#FFFFFF';
   ctx.font = 'bold 11px Arial, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
@@ -368,7 +366,7 @@ function drawWordList(ctx, words, placements, foundWords, highlights, ox, wordLi
   const labelY = wordListY + 22;
 
   words.forEach((word, i) => {
-    const found = foundWords.includes(word); // ✅ correct place
+    const found = foundWords.includes(word);
 
     const col   = i % WORDS_COLS;
     const row   = Math.floor(i / WORDS_COLS);
@@ -378,13 +376,15 @@ function drawWordList(ctx, words, placements, foundWords, highlights, ox, wordLi
     const highlight = highlights.find(h => h.word === word);
     const chipColor = (found && highlight?.color) ? highlight.color : null;
 
-    // ✅ BACKGROUND (unchanged like your original)
+    // ── BACKGROUND ──
     if (found && chipColor) {
       ctx.fillStyle = chipColor;
-      ctx.shadowColor = chipColor.slice(0, 7);
+      ctx.shadowColor = chipColor;
       ctx.shadowBlur = 12;
+
       roundRect(ctx, chipX, chipY, chipW, chipH, chipH / 2);
       ctx.fill();
+
       ctx.shadowBlur = 0;
       ctx.shadowColor = 'transparent';
     } else {
@@ -393,23 +393,23 @@ function drawWordList(ctx, words, placements, foundWords, highlights, ox, wordLi
       ctx.fill();
     }
 
-    // BORDER
-    ctx.strokeStyle = found && chipColor ? chipColor.slice(0, 7) : THEME.cellBorder;
-    ctx.lineWidth   = found ? 1.5 : 1;
+    // ── BORDER ──
+    ctx.strokeStyle = found && chipColor ? chipColor : THEME.cellBorder;
+    ctx.lineWidth = found ? 1.5 : 1;
     roundRect(ctx, chipX, chipY, chipW, chipH, 8);
     ctx.stroke();
 
-    // TEXT
+    // ── TEXT ──
     const textX = chipX + chipW / 2;
     const textY = chipY + chipH / 2;
 
     const hint = word[0] + '_'.repeat(word.length - 1);
     const displayText = found ? word : hint;
 
-    // ✅ THIS IS YOUR EXACT REQUIREMENT
+    // ⭐ EXACTLY WHAT YOU ASKED
     ctx.fillStyle = found
-      ? THEME.letterOnPill
-      : (isLight ? '#000000' : '#FFFFFF');
+      ? chipColor || THEME.letterOnPill   // SAME AS PILL COLOR
+      : (isLight ? '#000000' : '#FFFFFF'); // normal hint text
 
     ctx.font = found
       ? 'bold 15px Arial, sans-serif'
@@ -420,12 +420,13 @@ function drawWordList(ctx, words, placements, foundWords, highlights, ox, wordLi
 
     ctx.fillText(`${displayText} (${word.length})`, textX, textY);
 
-    // STRIKETHROUGH
+    // ── STRIKE (same color as pill) ──
     if (found) {
       const tw = ctx.measureText(displayText).width;
-      ctx.strokeStyle = THEME.letterOnPill;
+
+      ctx.strokeStyle = chipColor || THEME.letterOnPill;
       ctx.lineWidth = 1.5;
-      ctx.globalAlpha = 0.45;
+      ctx.globalAlpha = 0.5;
 
       ctx.beginPath();
       ctx.moveTo(textX - tw / 2, textY);
