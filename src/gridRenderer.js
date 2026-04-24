@@ -171,7 +171,9 @@ function buildHighlights(placements, foundWords) {
 
   return foundWords
     .map((word, idx) => {
-      const placement = placements.find(p => p.word === word);
+      const placement = placements.find(
+  p => p.word.toLowerCase() === word.toLowerCase()
+);
       if (!placement) return null;
 
       const base  = PILL_PALETTE[idx % PILL_PALETTE.length];
