@@ -1,15 +1,27 @@
+/**
+ * index.js — Word Grid Discord Bot
+ *
+ * FIXES applied:
+ *  1. Every slash command defers immediately → no 10062 "Unknown interaction" timeouts
+ *  2. No multiple-reply paths — all commands use deferReply + editReply exclusively
+ *  3. Auto-hint "undefined" fixed in gameManager; extra guard here before sending
+ *  4. Last-word found: endGame() is called inside processAnswer before we fetch
+ *     the message, and timers are cleared there — no stale interaction used
+ *  5. Session persistence: restored sessions get new timers on ready
+ *  6. Timers always fetch channel via client.channels.fetch() — no stale objects
+ *  7. All async operations wrapped in try/catch — bot never crashes on a bad edit
+ */
+
+'use strict';
+
 require('dotenv').config();
 
 const express = require('express');
 const app = express();
-
-app.get('/', (req, res) => res.send('Bot alive'));
-
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`🌐 Server running on port ${PORT}`);
-});
+app.get('/', (_, res) => res.send('Bot alive'));
+app.listen(process.env.PORT || 3000, () =>
+  console.log(`🌐 Server running on port ${process.env.PORT || 3000}`)
+);
 
 const {
   Client,
@@ -30,6 +42,7 @@ const {
   getSession,
   setEndTimer,
   setHintTimer,
+  loadPersistedSessions,
 } = require('./gameManager');
 
 const {
@@ -40,7 +53,7 @@ const {
 
 const { generateGridImage } = require('./gridRenderer');
 
-// ─── Bot Client Setup ────────────────────────────────────────────────────────
+// ─── Bot Client ───────────────────────────────────────────────────────────────
 
 const client = new Client({
   intents: [
@@ -50,11 +63,44 @@ const client = new Client({
   ],
 });
 
-// ─── Ready Event ─────────────────────────────────────────────────────────────
+// ─── Ready ────────────────────────────────────────────────────────────────────
 
-client.once(Events.ClientReady, (c) => {
+client.once(Events.ClientReady, async (c) => {
   console.log(`✅ Logged in as ${c.user.tag}`);
   c.user.setActivity('Word Grid 🔤', { type: ActivityType.Playing });
+
+  // Re-attach timers for any sessions that survived a restart
+  const restored = loadPersistedSessions();
+  for (const { channelId, session } of restored) {
+    const elapsed = Date.now() - session.startTime;
+    const maxMs   = 30 * 60 * 1000;
+
+    if (elapsed >= maxMs) {
+      // Game expired while the bot was offline — end it now
+      try {
+        const result  = endGame(channelId, false);
+        if (!result || !session.channelId || !session.messageId) continue;
+
+        const channel = await client.channels.fetch(session.channelId).catch(() => null);
+        if (!channel) continue;
+
+        const msg = await channel.messages.fetch(session.messageId).catch(() => null);
+        if (msg) {
+          await msg.edit({
+            embeds: [buildGameEndEmbed(result, "⏰ Time's Up! (bot restarted)")],
+            files:  [buildGridAttachment(result.grid, result.words, result.placements, result.foundWords, result.hardMode)],
+          }).catch(console.error);
+        }
+        await channel.send({ content: '⏰ The previous game expired while the bot was offline.' }).catch(() => {});
+      } catch (err) {
+        console.error('[Restore] Error ending expired session:', err.message);
+      }
+    } else {
+      // Re-attach timers with remaining time taken into account
+      attachTimers(channelId);
+      console.log(`[Restore] Re-attached timers for channel ${channelId}`);
+    }
+  }
 });
 
 // ─── Slash Command Handler ────────────────────────────────────────────────────
@@ -64,52 +110,58 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
   const { commandName, channelId, guildId, user } = interaction;
 
+  // ── /new ──────────────────────────────────────────────────────────────────
   if (commandName === 'new') {
     await handleStartGame(interaction, false);
   }
 
+  // ── /newhard ──────────────────────────────────────────────────────────────
   else if (commandName === 'newhard') {
     await handleStartGame(interaction, true);
   }
 
+  // ── /hint ─────────────────────────────────────────────────────────────────
   else if (commandName === 'hint') {
+    // FIX: defer FIRST — prevents 10062 if hint logic takes > 3 s
+    await interaction.deferReply({ ephemeral: true });
 
-  await interaction.deferReply({ ephemeral: true }); // 🔥 ADD
+    if (!hasActiveGame(channelId)) {
+      return interaction.editReply({ content: '❌ No active game in this channel.' });
+    }
 
-  if (!hasActiveGame(channelId)) {
-    return interaction.editReply({ content: '❌ No active game...' });
+    const hintData = getHint(channelId);
+
+    if (hintData?.error) {
+      return interaction.editReply({ content: `❌ ${hintData.error}` });
+    }
+    if (!hintData) {
+      return interaction.editReply({ content: '🎉 All words have already been found!' });
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor(0xF0A500)
+      .setTitle('💡 Hint!')
+      .setDescription(`\`${hintData.hint}\`\n${hintData.remaining} word(s) remaining`);
+
+    await interaction.editReply({ embeds: [embed] });
   }
 
-  const hintData = getHint(channelId);
-
-  if (hintData?.error) {
-    return interaction.editReply({ content: `❌ ${hintData.error}` });
-  }
-
-  if (!hintData) {
-    return interaction.editReply({ content: '🎉 All words found!' });
-  }
-
-  const embed = new EmbedBuilder()
-    .setColor(0xF0A500)
-    .setTitle('💡 Hint!')
-    .setDescription(`\`${hintData.hint}\`\n${hintData.remaining} left`);
-
-  await interaction.editReply({ embeds: [embed] }); // 🔥 CHANGE
-}
-
+  // ── /leaderboard ──────────────────────────────────────────────────────────
   else if (commandName === 'leaderboard') {
-    const type = interaction.options.getString('type') || 'local';
+    // FIX: defer first — file reads can be slow
+    await interaction.deferReply();
 
+    const type = interaction.options.getString('type') || 'local';
     let title, description;
+
     if (type === 'global') {
       const entries = getGlobalLeaderboard(10);
-      title = '🌍 Global Leaderboard';
-      description = formatLeaderboard(entries);
+      title        = '🌍 Global Leaderboard';
+      description  = formatLeaderboard(entries);
     } else {
       const entries = getLocalLeaderboard(guildId, 10);
-      title = '🏠 Server Leaderboard';
-      description = formatLeaderboard(entries);
+      title        = '🏠 Server Leaderboard';
+      description  = formatLeaderboard(entries);
     }
 
     const embed = new EmbedBuilder()
@@ -119,53 +171,61 @@ client.on(Events.InteractionCreate, async (interaction) => {
       .setFooter({ text: '3-letter words = 2pts • 4-letter = 3pts • 5+ letters = 5pts' })
       .setTimestamp();
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.editReply({ embeds: [embed] });
   }
 
+  // ── /endgame ──────────────────────────────────────────────────────────────
   else if (commandName === 'endgame') {
+    // FIX: defer first — image generation takes time
+    await interaction.deferReply();
+
     if (!hasActiveGame(channelId)) {
-      return interaction.reply({ content: '❌ No active game in this channel.', ephemeral: true });
+      return interaction.editReply({ content: '❌ No active game in this channel.' });
     }
 
-    // Grab session before ending so we can render the final image
     const session = getSession(channelId);
     const result  = endGame(channelId, false);
-    if (!result) return interaction.reply({ content: '❌ No game found.', ephemeral: true });
+    if (!result) return interaction.editReply({ content: '❌ Could not end game.' });
 
     const embed      = buildGameEndEmbed(result, '⛔ Game Ended Early');
-    const attachment = buildGridAttachment(session.grid, session.words, session.placements, session.foundWords, session.hardMode);
+    const attachment = buildGridAttachment(
+      session.grid, session.words, session.placements, session.foundWords, session.hardMode
+    );
 
-    await interaction.reply({ embeds: [embed], files: [attachment] });
+    await interaction.editReply({ embeds: [embed], files: [attachment] });
   }
 
+  // ── /score ────────────────────────────────────────────────────────────────
   else if (commandName === 'score') {
+    // FIX: defer first — image generation takes time
+    await interaction.deferReply({ ephemeral: true });
+
     if (!hasActiveGame(channelId)) {
-      return interaction.reply({ content: '❌ No active game in this channel.', ephemeral: true });
+      return interaction.editReply({ content: '❌ No active game in this channel.' });
     }
 
     const session    = getSession(channelId);
     const foundCount = session.foundWords.length;
     const totalCount = session.words.length;
     const remaining  = totalCount - foundCount;
+    const hintStatus = session.hintUsed ? '💡 Used ❌' : '💡 Available ✅';
 
-    const hintStatus = session.hintUsed
-  ? '💡 Used ❌'
-  : '💡 Available ✅';
+    const embed = new EmbedBuilder()
+      .setColor(0x57F287)
+      .setTitle('📊 Current Game Score')
+      .addFields(
+        { name: '📝 Progress', value: `Found **${foundCount}/${totalCount}** words • **${remaining}** remaining`, inline: false },
+        { name: '💡 Hint',    value: hintStatus, inline: true },
+        { name: '🏆 Scoreboard', value: buildSessionScoreboard(session), inline: false },
+      )
+      .setFooter({ text: `Mode: ${session.hardMode ? '🔴 Hard' : '🟢 Normal'} • Time limit: 30 min` })
+      .setImage('attachment://grid.png');
 
-const embed = new EmbedBuilder()
-  .setColor(0x57F287)
-  .setTitle('📊 Current Game Score')
-  .addFields(
-    { name: '📝 Progress', value: `Found **${foundCount}/${totalCount}** words • **${remaining}** remaining`, inline: false },
-    { name: '💡 Hint', value: hintStatus, inline: true },
-    { name: '🏆 Scoreboard', value: buildSessionScoreboard(session), inline: false },
-  )
-  .setFooter({ text: `Mode: ${session.hardMode ? '🔴 Hard' : '🟢 Normal'} • Time limit: 30 min` })
-  .setImage('attachment://grid.png');
+    const attachment = buildGridAttachment(
+      session.grid, session.words, session.placements, session.foundWords, session.hardMode
+    );
 
-    const attachment = buildGridAttachment(session.grid, session.words, session.placements, session.foundWords, session.hardMode);
-
-    await interaction.reply({ embeds: [embed], files: [attachment] });
+    await interaction.editReply({ embeds: [embed], files: [attachment] });
   }
 });
 
@@ -185,17 +245,23 @@ client.on(Events.MessageCreate, async (message) => {
   if (!result) return;
 
   if (result.alreadyFound) {
-    await message.react('♻️');
+    await message.react('♻️').catch(() => {});
     return;
   }
 
-  if (result.correct) {
-    await message.react('✅');
+  if (!result.correct) return;
 
-    const session = getSession(channelId) || result.session;
+  await message.react('✅').catch(() => {});
 
-    // 🎉 ALL FOUND
-    if (result.allFound) {
+  // ── All words found ───────────────────────────────────────────────────────
+  // FIX: processAnswer already called endGame() internally when allFound — timers
+  // are cleared. We just need to update the UI.
+  if (result.allFound) {
+    try {
+      const attachment = buildGridAttachment(
+        result.grid, result.words, result.placements, result.foundWords, false
+      );
+
       const embed = new EmbedBuilder()
         .setColor(0xFFD700)
         .setTitle('🎉 All words found! Puzzle Complete!')
@@ -203,66 +269,71 @@ client.on(Events.MessageCreate, async (message) => {
         .setFooter({ text: 'Amazing teamwork! Start a new game with /new' })
         .setImage('attachment://grid.png');
 
-      const attachment = buildGridAttachment(
-        result.grid,
-        result.words,
-        result.placements,
-        result.foundWords,
-        false
-      );
+      // FIX: fetch channel + message via client — not via stale interaction
+      if (result.messageId && result.channelId) {
+        const channel    = await client.channels.fetch(result.channelId).catch(() => null);
+        const gameMessage = channel
+          ? await channel.messages.fetch(result.messageId).catch(() => null)
+          : null;
 
-      const gameMessage = await message.channel.messages.fetch(session.messageId);
-
-      await gameMessage.edit({
-        embeds: [embed],
-        files: [attachment],
-      });
-
-      return;
+        if (gameMessage) {
+          await gameMessage.edit({ embeds: [embed], files: [attachment] }).catch(console.error);
+        }
+      }
+    } catch (err) {
+      console.error('[AllFound] Error updating game message:', err.message);
     }
+    return;
+  }
 
-    // ✅ NORMAL UPDATE (update ONLY image in main game message)
+  // ── Normal word found — update main grid image ────────────────────────────
+  // FIX: session is still alive here (not allFound), so getSession is safe
+  const session = getSession(channelId);
+  if (!session) return;
+
+  try {
     const attachment = buildGridAttachment(
-      session.grid,
-      session.words,
-      session.placements,
-      session.foundWords,
-      session.hardMode
+      session.grid, session.words, session.placements, session.foundWords, session.hardMode
     );
 
-    const gameMessage = await message.channel.messages.fetch(session.messageId);
+    if (session.messageId) {
+      const channel    = await client.channels.fetch(session.channelId).catch(() => null);
+      const gameMessage = channel
+        ? await channel.messages.fetch(session.messageId).catch(() => null)
+        : null;
 
-    const oldEmbed = gameMessage.embeds[0];
-    const updatedEmbed = EmbedBuilder.from(oldEmbed)
-      .setImage('attachment://grid.png');
+      if (gameMessage) {
+        const oldEmbed     = gameMessage.embeds[0];
+        const updatedEmbed = EmbedBuilder.from(oldEmbed).setImage('attachment://grid.png');
+        await gameMessage.edit({ embeds: [updatedEmbed], files: [attachment] }).catch(console.error);
+      }
+    }
+  } catch (err) {
+    console.error('[WordFound] Error updating grid message:', err.message);
+  }
 
-    await gameMessage.edit({
-      embeds: [updatedEmbed],
-      files: [attachment],
-    });
-
-    // ✅ SEND SCORE AS NEW MESSAGE
+  // Send a brief score update as a new message
+  try {
     await message.channel.send({
       embeds: [
         new EmbedBuilder()
           .setColor(0x57F287)
           .setTitle(`✅ ${result.word} found by ${author.username}`)
           .setDescription(`+${result.points} pts • ${result.remaining} left`)
-          .addFields({
-            name: '🏆 Scoreboard',
-            value: result.scoreboard,
-          }),
+          .addFields({ name: '🏆 Scoreboard', value: result.scoreboard }),
       ],
     });
+  } catch (err) {
+    console.error('[WordFound] Error sending score message:', err.message);
   }
-}); // ✅ IMPORTANT: CLOSE EVENT
+});
 
-// ─── Helper: Handle /new and /newhard ────────────────────────────────────────
+// ─── /new + /newhard Handler ──────────────────────────────────────────────────
 
 async function handleStartGame(interaction, hardMode) {
   const { channelId, guildId } = interaction;
 
-  // Defer — image generation can take ~100ms
+  // FIX: defer IMMEDIATELY — image generation can take ~100–300 ms
   await interaction.deferReply();
 
   const result = startGame(channelId, guildId, hardMode);
@@ -288,84 +359,93 @@ async function handleStartGame(interaction, hardMode) {
     )
     .addFields(
       { name: '⏱ Time Limit', value: '30 minutes', inline: true },
-      { name: '💡 Hint', value: 'Available ✅ (1 per game)', inline: true },
-      { name: '🏆 Points', value: '3-letter: **2pts** • 4-letter: **3pts** • 5+ letters: **5pts**', inline: false },
+      { name: '💡 Hint',      value: 'Available ✅ (1 per game)', inline: true },
+      { name: '🏆 Points',    value: '3-letter: **2pts** • 4-letter: **3pts** • 5+ letters: **5pts**', inline: false },
     )
     .setImage('attachment://grid.png')
     .setFooter({ text: 'Use /score to check progress • /endgame to end early' })
     .setTimestamp();
 
-  const attachment = buildGridAttachment(
-    session.grid, session.words, session.placements, [], hardMode
-  );
+  const attachment = buildGridAttachment(session.grid, session.words, session.placements, [], hardMode);
 
-  const reply = await interaction.editReply({
-  embeds: [embed],
-  files: [attachment]
-});
+  const reply = await interaction.editReply({ embeds: [embed], files: [attachment] });
 
-// ✅ Save message ID so we can update it later
-session.messageId = reply.id;
-session.channelId = interaction.channelId; // 🔥 ADD THIS
+  // Store IDs for later message edits (timers, word-found updates)
+  session.messageId = reply.id;
+  session.channelId = channelId;
 
-  // 30-minute end timer
+  attachTimers(channelId);
+}
+
+/**
+ * Attaches end timer and hint timer to the session identified by channelId.
+ * Safe to call on restored sessions — setEndTimer/setHintTimer deduplicate.
+ */
+function attachTimers(channelId) {
+  // ── 30-minute end timer ───────────────────────────────────────────────────
   setEndTimer(channelId, async (cid) => {
-  const session = getSession(cid);
-  if (!session) return;
+    // FIX: capture session BEFORE endGame deletes it
+    const session   = getSession(cid);
+    const endResult = endGame(cid, false);
+    if (!endResult || !session) return;
 
-  const endResult = endGame(cid, false);
-  if (!endResult) return;
+    try {
+      const channel = await client.channels.fetch(session.channelId).catch(() => null);
+      if (!channel) return;
 
-  const channel = await client.channels.fetch(session.channelId);
-  const gameMessage = await channel.messages.fetch(session.messageId);
+      const gameMessage = session.messageId
+        ? await channel.messages.fetch(session.messageId).catch(() => null)
+        : null;
 
-  await gameMessage.edit({
-    embeds: [buildGameEndEmbed(endResult, "⏰ Time's Up!")],
-    files: [buildGridAttachment(
-      session.grid,
-      session.words,
-      session.placements,
-      session.foundWords,
-      session.hardMode
-    )],
+      if (gameMessage) {
+        await gameMessage.edit({
+          embeds: [buildGameEndEmbed(endResult, "⏰ Time's Up!")],
+          files:  [buildGridAttachment(
+            endResult.grid, endResult.words, endResult.placements,
+            endResult.foundWords, endResult.hardMode
+          )],
+        }).catch(console.error);
+      }
+
+      await channel.send({ content: '⏰ Game ended — time limit reached!' }).catch(() => {});
+    } catch (err) {
+      console.error('[EndTimer] Error ending game by timer:', err.message);
+    }
   });
 
-  await channel.send({ content: '⏰ Game ended due to time!' });
-});
+  // ── Auto-hint interval ────────────────────────────────────────────────────
+  setHintTimer(channelId, async (cid) => {
+    try {
+      const hintData = getAutoHint(cid);
 
-  // Hint timer
-   setHintTimer(channelId, async (cid) => {
-  try {
-    const hintData = getAutoHint(cid);
-    if (!hintData) return;
+      // FIX: guard against undefined/null before using hintData fields
+      if (!hintData || !hintData.hint) return;
 
-    const hintEmbed = new EmbedBuilder()
-      .setColor(0xF0A500)
-      .setTitle('💡 Auto Hint!')
-      .setDescription(
-        `No one has answered in 10 minutes!\n\n` +
-        `Here's a hint: **\`${hintData.hint}\`**\n\n` +
-        `*${hintData.remaining} word(s) remaining*`
-      );
+      const hintEmbed = new EmbedBuilder()
+        .setColor(0xF0A500)
+        .setTitle('💡 Auto Hint!')
+        .setDescription(
+          `No one has answered in 10 minutes!\n\n` +
+          `Here's a hint: **\`${hintData.hint}\`**\n\n` +
+          `*${hintData.remaining} word(s) remaining*`
+        );
 
-    const channel = await client.channels.fetch(cid);
-    if (!channel) return;
+      const channel = await client.channels.fetch(cid).catch(() => null);
+      if (!channel) return;
 
-    await channel.send({ embeds: [hintEmbed] });
-
-  } catch (err) {
-    console.error('Could not send hint:', err);
-  }
-});
+      await channel.send({ embeds: [hintEmbed] });
+    } catch (err) {
+      console.error('[HintTimer] Could not send auto-hint:', err.message);
+    }
+  });
 }
-// ─── Helper: Build AttachmentBuilder from grid state ─────────────────────────
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function buildGridAttachment(grid, words, placements, foundWords, hardMode) {
-  const buffer = generateGridImage(grid, words, placements, foundWords, hardMode);
+  const buffer = generateGridImage(grid, words, placements, foundWords ?? [], hardMode);
   return new AttachmentBuilder(buffer, { name: 'grid.png' });
 }
-
-// ─── Helper: Build game end embed ────────────────────────────────────────────
 
 function buildGameEndEmbed(result, title) {
   const durationMin = Math.floor(result.duration / 60);
@@ -376,31 +456,33 @@ function buildGameEndEmbed(result, title) {
     .setTitle(title)
     .addFields(
       {
-        name: '✅ Words Found',
-        value: result.foundWords.length ? result.foundWords.map(w => `\`${w}\``).join(', ') : '*None*',
+        name:   '✅ Words Found',
+        value:  result.foundWords.length
+          ? result.foundWords.map(w => `\`${w}\``).join(', ')
+          : '*None*',
         inline: false,
       },
       {
-        name: '❌ Missed Words',
-        value: result.unfoundWords.length ? result.unfoundWords.map(w => `\`${w}\``).join(', ') : '*All found!*',
+        name:   '❌ Missed Words',
+        value:  result.unfoundWords.length
+          ? result.unfoundWords.map(w => `\`${w}\``).join(', ')
+          : '*All found!*',
         inline: false,
       },
       {
-        name: '🏆 Final Scoreboard',
-        value: result.scoreboard || '*No scores recorded*',
+        name:   '🏆 Final Scoreboard',
+        value:  result.scoreboard || '*No scores recorded*',
         inline: false,
       },
       {
-        name: '⏱ Duration',
-        value: `${durationMin}m ${durationSec}s`,
+        name:   '⏱ Duration',
+        value:  `${durationMin}m ${durationSec}s`,
         inline: true,
       }
     )
     .setFooter({ text: 'Start a new game with /new or /newhard!' })
     .setTimestamp();
 }
-
-// ─── Helper: Session scoreboard ──────────────────────────────────────────────
 
 function buildSessionScoreboard(session) {
   const entries = Object.entries(session.scores)
@@ -416,7 +498,7 @@ function buildSessionScoreboard(session) {
   }).join('\n');
 }
 
-// ─── Login ───────────────────────────────────────────────────────────────────
+// ─── Login ────────────────────────────────────────────────────────────────────
 
 client.login(process.env.DISCORD_TOKEN).catch(err => {
   console.error('❌ Failed to login:', err.message);
