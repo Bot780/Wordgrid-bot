@@ -303,7 +303,8 @@ try {
     session.words,
     session.placements,
     session.foundWords,   // ⭐ IMPORTANT (this updates highlights)
-    session.hardMode
+    session.hardMode,
+    session.isLight
   );
 
   if (session.messageId) {
