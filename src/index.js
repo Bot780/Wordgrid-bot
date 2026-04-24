@@ -189,7 +189,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     const embed      = buildGameEndEmbed(result, '⛔ Game Ended Early');
     const attachment = buildGridAttachment(
-      session.grid, session.words, session.placements, session.foundWords, session.hardMode
+      session.grid, session.words, session.placements, session.words, session.hardMode
     );
 
     await interaction.editReply({ embeds: [embed], files: [attachment] });
