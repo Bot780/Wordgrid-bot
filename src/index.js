@@ -332,7 +332,6 @@ session.channelId = interaction.channelId; // 🔥 ADD THIS
 
   await channel.send({ content: '⏰ Game ended due to time!' });
 });
-});
 
   // Hint timer
    setHintTimer(channelId, async (cid) => {
