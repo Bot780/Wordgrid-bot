@@ -245,7 +245,6 @@ const attachment = buildGridAttachment(
 return interaction.editReply({ embeds: [embed], files: [attachment] });
 
 }
-});
 
 // ─── Start Game ─────────────────────────────────────────
 
