@@ -195,6 +195,7 @@ function buildGameEndEmbed(result, title) {
 
     .setTimestamp();
 }
+const embed = buildGameEndEmbed(result, "⏰ Time's Up!");
 
 const row = new ActionRowBuilder().addComponents(
   new ButtonBuilder()
@@ -203,9 +204,8 @@ const row = new ActionRowBuilder().addComponents(
     .setStyle(ButtonStyle.Primary)
 );
 
-return interaction.editReply({
+await channel.send({
   embeds: [embed],
-  files: [attachment],
   components: [row]
 });
 
