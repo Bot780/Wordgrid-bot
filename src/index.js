@@ -294,6 +294,40 @@ client.on(Events.MessageCreate, async (message) => {
   // ✅ Correct new word
   await message.react('✅').catch(() => {});
 
+const session = getSession(channelId);
+if (!session) return;
+
+try {
+  const attachment = buildGridAttachment(
+    session.grid,
+    session.words,
+    session.placements,
+    session.foundWords,   // ⭐ IMPORTANT (this updates highlights)
+    session.hardMode
+  );
+
+  if (session.messageId) {
+    const channel = await message.client.channels.fetch(session.channelId).catch(() => null);
+    const gameMessage = channel
+      ? await channel.messages.fetch(session.messageId).catch(() => null)
+      : null;
+
+    if (gameMessage) {
+      const oldEmbed = gameMessage.embeds[0];
+
+      const updatedEmbed = EmbedBuilder.from(oldEmbed)
+        .setImage('attachment://grid.png');
+
+      await gameMessage.edit({
+        embeds: [updatedEmbed],
+        files: [attachment],
+      });
+    }
+  }
+} catch (err) {
+  console.error('[UpdateGrid] Error:', err.message);
+}
+
   const scoreboard = result.scoreboard || '*No scores yet!*';
 
   const correctEmbed = new EmbedBuilder()
