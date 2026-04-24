@@ -5,7 +5,7 @@ const express = require('express');
 const app = express();
 app.get('/', (_, res) => res.send('Bot alive'));
 app.listen(process.env.PORT || 3000, () =>
-console.log("🌐 Server running on port ${process.env.PORT || 3000}")
+console.log('🌐 Server running on port ${process.env.PORT || 3000}')
 );
 
 const {
@@ -69,32 +69,38 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 // 🔥 BUTTON HANDLER
 if (interaction.isButton()) {
-if (interaction.customId.startsWith('solution_')) {
-const channelId = interaction.customId.split('_')[1];
-const session = getSession(channelId);
+  if (interaction.customId.startsWith('solution_')) {
 
-  if (!session) {
+    const channelId = interaction.customId.split('_')[1];
+
+    console.log("🔍 Fetching solution for", channelId);
+
+    const solution = global.solutions?.[channelId];
+
+    if (!solution) {
+      console.log("❌ No solution found");
+      return interaction.reply({
+        content: '❌ Solution expired.',
+        ephemeral: true
+      });
+    }
+
+    console.log("✅ Solution found");
+
+    const attachment = buildGridAttachment(
+      solution.grid,
+      solution.words,
+      solution.placements,
+      solution.words,
+      solution.hardMode
+    );
+
     return interaction.reply({
-      content: '❌ Solution expired.',
+      content: '📖 Full solution:',
+      files: [attachment],
       ephemeral: true
     });
   }
-
-  const attachment = buildGridAttachment(
-    session.grid,
-    session.words,
-    session.placements,
-    session.words,
-    session.hardMode
-  );
-
-  return interaction.reply({
-    content: '📖 Full solution:',
-    files: [attachment],
-    ephemeral: true
-  });
-}
-
 }
 
 if (!interaction.isChatInputCommand()) return;
@@ -204,14 +210,15 @@ if (commandName === 'endgame') {
   // ✅ send NEW message (not edit)
   const channel = await interaction.client.channels.fetch(channelId);
 
-  await channel.send({
-    embeds: [embed],
-    components: [row]
-  });
+await channel.send({
+  embeds: [embed],
+  components: [row]
+});
 
-  // ✅ optional: acknowledge command
-  await interaction.editReply({ content: '✅ Game ended.' });
-}
+// ✅ VERY IMPORTANT (this fixes 10062)
+return interaction.editReply({
+  content: '✅ Game ended.'
+});
 
 // ── SCORE ──
 if (commandName === 'score') {
