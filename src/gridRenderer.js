@@ -408,8 +408,8 @@ function drawWordList(ctx, words, placements, foundWords, highlights, ox, wordLi
 
     // ⭐ EXACTLY WHAT YOU ASKED
     ctx.fillStyle = found
-      ? chipColor || THEME.letterOnPill   // SAME AS PILL COLOR
-      : (isLight ? '#000000' : '#FFFFFF'); // normal hint text
+  ? THEME.letterOnPill   // ✅ readable (black on light, white on dark)
+  : (isLight ? '#000000' : '#FFFFFF');
 
     ctx.font = found
       ? 'bold 15px Arial, sans-serif'
