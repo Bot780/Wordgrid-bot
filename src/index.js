@@ -502,6 +502,10 @@ function attachTimers(channelId) {
  * isLight is passed through so the image uses the session's decided theme.
  */
 function buildGridAttachment(grid, words, placements, foundWords, hardMode, isLight) {
+
+const session = getSession(channelId);
+if (!session) return;
+
   const buffer = generateGridImage(
   grid,
   words,
