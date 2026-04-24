@@ -140,75 +140,77 @@ return interaction.editReply({ embeds: [embed] });
 
 // ── ENDGAME ──
 if (commandName === 'endgame') {
-await interaction.deferReply();
+  await interaction.deferReply();
 
-if (!hasActiveGame(channelId)) {
-  return interaction.editReply({ content: '❌ No active game.' });
-}
+  if (!hasActiveGame(channelId)) {
+    return interaction.editReply({ content: '❌ No active game.' });
+  }
 
-const session = getSession(channelId);
-if (!session) {
-  return interaction.editReply({ content: '❌ Session missing.' });
-}
+  const session = getSession(channelId);
+  if (!session) {
+    return interaction.editReply({ content: '❌ Session missing.' });
+  }
 
-let result;
-try {
-  result = endGame(channelId, false);
-} catch (err) {
-  console.error(err);
-  return interaction.editReply({ content: '❌ Failed to end game.' });
-}
+  // ✅ SAVE SOLUTION BEFORE END
+  global.solutions = global.solutions || {};
+  global.solutions[channelId] = {
+    grid: session.grid,
+    words: session.words,
+    placements: session.placements,
+    hardMode: session.hardMode
+  };
 
-function buildGameEndEmbed(result, title) {
-  const durationMin = Math.floor(result.duration / 60);
-  const durationSec = result.duration % 60;
+  let result;
+  try {
+    result = endGame(channelId, false);
+  } catch (err) {
+    console.error(err);
+    return interaction.editReply({ content: '❌ Failed to end game.' });
+  }
 
-  return new EmbedBuilder()
+  // ✅ Embed builder
+  const embed = new EmbedBuilder()
     .setColor(result.allFound ? 0x57F287 : 0xED4245)
-
-    // ⏰ Title
-    .setTitle(title)
-
-    // 🧠 Clean structured description (like screenshot)
+    .setTitle("⛔ Game Ended Early")
     .setDescription(
       `✅ **Words Found**\n` +
-      `${result.foundWords.length 
-        ? result.foundWords.map(w => `\`${w}\``).join(', ') 
+      `${result.foundWords.length
+        ? result.foundWords.map(w => `\`${w}\``).join(', ')
         : '*None*'}\n\n` +
 
       `❌ **Missed Words**\n` +
-      `${result.unfoundWords.length 
-        ? result.unfoundWords.map(w => `\`${w}\``).join(', ') 
+      `${result.unfoundWords.length
+        ? result.unfoundWords.map(w => `\`${w}\``).join(', ')
         : '*All found!*'}\n\n` +
 
       `🏆 **Final Scoreboard**\n` +
       `${result.scoreboard || '*No scores yet!*'}\n\n` +
 
       `⏱ **Duration**\n` +
-      `${durationMin}m ${durationSec}s`
+      `${Math.floor(result.duration / 60)}m ${result.duration % 60}s`
     )
-
-    // ✨ Footer like your screenshot
     .setFooter({
       text: 'Start a new game with /new or /newhard!'
     })
-
     .setTimestamp();
-}
-const embed = buildGameEndEmbed(result, "⏰ Time's Up!");
 
-const row = new ActionRowBuilder().addComponents(
-  new ButtonBuilder()
-    .setCustomId(`solution_${channelId}`)
-    .setLabel('📖 View Solution')
-    .setStyle(ButtonStyle.Primary)
-);
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`solution_${channelId}`)
+      .setLabel('📖 View Solution')
+      .setStyle(ButtonStyle.Primary)
+  );
 
-await channel.send({
-  embeds: [embed],
-  components: [row]
-});
+  // ✅ send NEW message (not edit)
+  const channel = await interaction.client.channels.fetch(channelId);
 
+  await channel.send({
+    embeds: [embed],
+    components: [row]
+  });
+
+  // ✅ optional: acknowledge command
+  await interaction.editReply({ content: '✅ Game ended.' });
 }
 
 // ── SCORE ──
