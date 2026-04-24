@@ -112,7 +112,7 @@ return handleStartGame(interaction, true);
 
 // ── HINT ──
 if (commandName === 'hint') {
-await interaction.deferReply({ ephemeral: true });
+await interaction.deferReply();
 
 if (!hasActiveGame(channelId)) {
   return interaction.editReply({ content: '❌ No active game.' });
@@ -124,9 +124,15 @@ if (!hintData) {
 }
 
 const embed = new EmbedBuilder()
-  .setColor(0xF0A500)
+  .setColor(0xF0A500) // yellow/orange like screenshot
+
   .setTitle('💡 Hint!')
-  .setDescription(`\`${hintData.hint}\`\n${hintData.remaining} left`);
+
+  .setDescription(
+    `One of the remaining words: **\`${hintData.hint}\`**\n\n` +
+    `*${hintData.remaining} word(s) remaining*\n\n` +
+    `Hints are also auto-given after 10 min of inactivity`
+  );
 
 return interaction.editReply({ embeds: [embed] });
 
@@ -153,15 +159,42 @@ try {
   return interaction.editReply({ content: '❌ Failed to end game.' });
 }
 
-const embed = buildGameEndEmbed(result, '⛔ Game Ended Early');
+function buildGameEndEmbed(result, title) {
+  const durationMin = Math.floor(result.duration / 60);
+  const durationSec = result.duration % 60;
 
-const attachment = buildGridAttachment(
-  session.grid,
-  session.words,
-  session.placements,
-  session.words,
-  session.hardMode
-);
+  return new EmbedBuilder()
+    .setColor(result.allFound ? 0x57F287 : 0xED4245)
+
+    // ⏰ Title
+    .setTitle(title)
+
+    // 🧠 Clean structured description (like screenshot)
+    .setDescription(
+      `✅ **Words Found**\n` +
+      `${result.foundWords.length 
+        ? result.foundWords.map(w => `\`${w}\``).join(', ') 
+        : '*None*'}\n\n` +
+
+      `❌ **Missed Words**\n` +
+      `${result.unfoundWords.length 
+        ? result.unfoundWords.map(w => `\`${w}\``).join(', ') 
+        : '*All found!*'}\n\n` +
+
+      `🏆 **Final Scoreboard**\n` +
+      `${result.scoreboard || '*No scores yet!*'}\n\n` +
+
+      `⏱ **Duration**\n` +
+      `${durationMin}m ${durationSec}s`
+    )
+
+    // ✨ Footer like your screenshot
+    .setFooter({
+      text: 'Start a new game with /new or /newhard!'
+    })
+
+    .setTimestamp();
+}
 
 const row = new ActionRowBuilder().addComponents(
   new ButtonBuilder()
@@ -228,9 +261,49 @@ hardMode
 );
 
 const embed = new EmbedBuilder()
-.setTitle('🔤 Word Grid')
-.setDescription("Find ${session.words.length} words!")
-.setImage('attachment://grid.png');
+  .setColor(hardMode ? 0xED4245 : 0x57F287)
+
+  // 🧠 Title (clean + modern)
+  .setTitle(`🔤 Word Grid — ${hardMode ? '🔴 Hard Mode' : '🟢 Normal Mode'}`)
+
+  // 📝 Main description (structured like your screenshot)
+  .setDescription(
+    `Find **${session.words.length} hidden words** in the grid!\n` +
+    `${hardMode 
+      ? 'Words hidden in **all 8 directions** (↕ ↔ ↘ ↗)' 
+      : 'Words hidden **right, down, and diagonally (↘)**'
+    }\n\n` +
+    `**Just type your answer in this channel to submit!**`
+  )
+
+  // 🔥 Sections like your screenshot
+  .addFields(
+    {
+      name: '⏱ Time Limit',
+      value: '30 minutes',
+      inline: true,
+    },
+    {
+      name: '💡 Hint',
+      value: 'Available ✅ (1 per game)',
+      inline: true,
+    },
+    {
+      name: '🏆 Points',
+      value: '3-letter: **2pts** • 4-letter: **3pts** • 5+ letters: **5pts**',
+      inline: false,
+    }
+  )
+
+  // 🖼 Grid image
+  .setImage('attachment://grid.png')
+
+  // ✨ Footer (clean like UI)
+  .setFooter({
+    text: 'Use /score to check progress • /endgame to end early',
+  })
+
+  .setTimestamp();
 
 const reply = await interaction.editReply({
 embeds: [embed],
@@ -266,13 +339,6 @@ const row = new ActionRowBuilder().addComponents(
 
 await msg.edit({
   embeds: [buildGameEndEmbed(result, "⏰ Time's Up!")],
-  files: [buildGridAttachment(
-    result.grid,
-    result.words,
-    result.placements,
-    result.foundWords,
-    result.hardMode
-  )],
   components: [row]
 });
 
