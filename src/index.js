@@ -306,39 +306,37 @@ async function handleStartGame(interaction, hardMode) {
 
 // ✅ Save message ID so we can update it later
 session.messageId = reply.id;
+session.channelId = interaction.channelId; // 🔥 ADD THIS
 
   // 30-minute end timer
   setEndTimer(channelId, async (cid) => {
-  const session = getSession(cid); // ✅ GET FIRST
+  const session = getSession(cid);
   if (!session) return;
 
   const endResult = endGame(cid, false);
   if (!endResult) return;
 
-  const embed = buildGameEndEmbed(endResult, "⏰ Time's Up!");
-
-  const attachment = buildGridAttachment(
-    session.grid,
-    session.words,
-    session.placements,
-    session.foundWords,
-    session.hardMode
-  );
-
-  const gameMessage = await interaction.channel.messages.fetch(session.messageId);
+  const channel = await client.channels.fetch(session.channelId);
+  const gameMessage = await channel.messages.fetch(session.messageId);
 
   await gameMessage.edit({
-    embeds: [embed],
-    files: [attachment],
+    embeds: [buildGameEndEmbed(endResult, "⏰ Time's Up!")],
+    files: [buildGridAttachment(
+      session.grid,
+      session.words,
+      session.placements,
+      session.foundWords,
+      session.hardMode
+    )],
   });
 
-  await interaction.channel.send({
-    content: '⏰ Game ended due to time!',
-  });
+  await channel.send({ content: '⏰ Game ended due to time!' });
+});
 });
 
   // Hint timer
-  setHintTimer(channelId, async (cid) => {
+   setHintTimer(channelId, async (cid) => {
+  try {
     const hintData = getAutoHint(cid);
     if (!hintData) return;
 
@@ -351,12 +349,15 @@ session.messageId = reply.id;
         `*${hintData.remaining} word(s) remaining*`
       );
 
-    try {
-      await interaction.channel.send({ embeds: [hintEmbed] });
-    } catch (err) {
-      console.error('Could not send hint:', err);
-    }
-  });
+    const channel = await client.channels.fetch(cid);
+    if (!channel) return;
+
+    await channel.send({ embeds: [hintEmbed] });
+
+  } catch (err) {
+    console.error('Could not send hint:', err);
+  }
+});
 }
 
 // ─── Helper: Build AttachmentBuilder from grid state ─────────────────────────
