@@ -187,6 +187,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return interaction.editReply({ content: '❌ Session missing.' });
     }
 
+if (
+  session.hostId !== interaction.user.id &&
+  !interaction.member.permissions.has('Administrator')
+) {
+  return interaction.editReply({
+    content: '❌ Only the host or an admin can end the game.'
+  });
+}
+
     // ✅ Snapshot BEFORE endGame() deletes the session
     saveSolution(channelId, session);
 

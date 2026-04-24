@@ -33,6 +33,7 @@ function sessionToJSON(session) {
   return {
     channelId:      session.channelId,
     guildId:        session.guildId,
+    hostId: session.hostId,
     hardMode:       session.hardMode,
     isLight:        session.isLight,        // ← persist theme
     grid:           session.grid,
@@ -73,6 +74,7 @@ function loadPersistedSessions() {
       const session = {
         channelId:      saved.channelId,
         guildId:        saved.guildId,
+        hostId:         saved.hostId || null,
         hardMode:       saved.hardMode,
         isLight:        saved.isLight ?? (Math.random() < 0.5), // ← restore theme
         grid:           saved.grid,
@@ -145,7 +147,7 @@ function getSessionScoreboard(session) {
  * gridRenderer receives it as a parameter so every image for this game
  * uses the same theme — not a random roll at render time.
  */
-function startGame(channelId, guildId, hardMode = false) {
+function startGame(channelId, guildId, hardMode = false, hostId) {
   if (activeSessions.has(channelId)) {
     return { error: 'A game is already running in this channel! Finish it or wait for it to end.' };
   }
@@ -155,6 +157,7 @@ function startGame(channelId, guildId, hardMode = false) {
   const session = {
     channelId,
     guildId,
+    hostId,
     hardMode,
     isLight:        Math.random() < 0.5,  // ← theme decided ONCE per game
     grid,
